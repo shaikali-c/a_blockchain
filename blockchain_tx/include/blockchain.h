@@ -2,7 +2,6 @@
 #include <pch.h>
 #include <sodium.h>
 #include <transaction.h>
-#include <keys.h>
 #include <databaseManager.h>
 #include <common.h>
 
@@ -20,7 +19,17 @@ public:
 	DBManager& getkeysDB();
 
 	void Blockchain::init(const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& owner);
+
 	void loadUTXO();
+	void saveUTXO();
+
+	std::pair<uint64_t, std::vector<std::string>> Blockchain::findUTXO(
+		const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& owner, uint64_t amount
+	);
+
+	void listTransactions() const;
+	void listUTXO() const;
+
 	bool createTransaction(
 		const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& s,
 		const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& r,

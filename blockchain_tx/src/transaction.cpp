@@ -35,6 +35,10 @@ Transaction::Transaction(
     const std::vector<UTXO>& o
 ) : sender(s), receiver(r), coins(c), outputs(o) {
 
+    timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
+        std::chrono::high_resolution_clock::now().time_since_epoch()
+    ).count();
+
     std::array<unsigned char, crypto_generichash_BYTES> hash;
 
     crypto_generichash_state state;
@@ -52,6 +56,8 @@ Transaction::Transaction(
         reinterpret_cast<const unsigned char*>(&coins),
         sizeof(coins)
     );
+
+    crypto_generichash_update(&state, reinterpret_cast<const unsigned char*>(&timestamp), sizeof(timestamp));
 
     crypto_generichash_final(&state, hash.data(), hash.size());
 

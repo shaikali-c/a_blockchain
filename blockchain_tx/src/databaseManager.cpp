@@ -21,7 +21,7 @@ std::string DBManager::loadKey(const std::string& key) const {
     return value;
 }
 
-void DBManager::remove(const std::string& kname) {
+void DBManager::remove(const std::string& kname) const {
     db->Delete(leveldb::WriteOptions(), kname);
 }
 

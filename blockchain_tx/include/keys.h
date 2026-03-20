@@ -6,12 +6,12 @@
 
 class Keys {
 private:
-	std::string owner;
 	std::array<unsigned char, crypto_box_PUBLICKEYBYTES> _publicKey;
 	std::array<unsigned char, crypto_box_SECRETKEYBYTES> _secretKey;
 	DBManager& keysDB;
 
 public:
+	std::string owner;
 	Keys(DBManager& db, const std::string& kname);
 	Keys(DBManager& db);
 	void createKeys();

@@ -1,10 +1,33 @@
 #include <blockchain.h>
 
-Blockchain::Blockchain() : keysDB("keys"), utxoDB("utxo") {
+Blockchain::Blockchain() : keysDB("C:/Blockchain/Databases/keys"), utxoDB("C:/Blockchain/Databases/utxo") {
 	loadUTXO();
 }
 
 void Blockchain::init(const std::array<unsigned char, PUBLIC_KEY_BYTES>& owner) {
+	utxo["TX_HASH:1"] = UTXO{ 100000, owner };
+	saveUTXO();
+}
+
+void Blockchain::saveUTXO() {
+	for (auto it = utxo.begin(); it != utxo.end(); it++) {
+		utxoDB.saveKey(it->first, it->second.serialize());
+	}
+}
+
+std::pair<uint64_t, std::vector<std::string>> Blockchain::findUTXO(
+	const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& owner, uint64_t amount
+) {
+	uint64_t total = 0;
+	std::vector<std::string> collect_outputs;
+	for (const auto& [txid, out] : utxo) {
+		if (out.owner == owner) {
+			total += out.coins;
+			collect_outputs.push_back(txid);
+			if (total >= amount) break;
+		}
+	}
+	return std::make_pair(total, collect_outputs);
 }
 
 void Blockchain::loadUTXO() {
@@ -28,24 +51,14 @@ bool Blockchain::createTransaction(
 ) {
 
 	if (amount == 0) {
-		std::cout << "Transaction amount must be positive\n";
+		std::cout << "[DEBUG] Invalid amount.\n";
 		return false;
 	}
 
-
-	std::vector<std::string> collect_outputs;
-	uint64_t total = 0;
-
-	for (auto& output : utxo) {
-		if (output.second.owner == s) {
-			total += output.second.coins;
-			collect_outputs.push_back(output.first);
-		}
-		if (total >= amount) break;
-	}
+	auto [total, collect_outputs] = findUTXO(s, amount);
 
 	if (total < amount) {
-		std::cout << "Not Enough Coins!\n";
+		std::cout << "[DEBUG] Not Enough Coins.\n";
 		return false;
 	}
 
@@ -55,6 +68,8 @@ bool Blockchain::createTransaction(
 	}
 
 	std::vector<UTXO> outputs;
+	std::vector<Input> inputs;
+
 	outputs.emplace_back(amount, r);
 
 	if (total > amount) {
@@ -62,23 +77,38 @@ bool Blockchain::createTransaction(
 	}
 
 	Transaction tx{ s, r, amount, outputs };
-	std::vector<Input> inputs;
 
 	for (size_t i = 0; i < outputs.size(); i++) {
-		std::string utxo_key = tx.transaction_hash + ":" + std::to_string(i);
 		inputs.emplace_back(tx.transaction_hash, static_cast<uint32_t>(i));
-		utxo[utxo_key] = outputs[i];
+		utxo[tx.transaction_hash + ":" + std::to_string(i)] = outputs[i];
 	}
 
-	for (auto it = utxo.begin(); it != utxo.end(); it++) {
-		std::cout << it->first << "\n";
-		utxoDB.saveKey(it->first, it->second.serialize());
-	}
+	tx.inputs = inputs;
+	transactions.emplace(tx.transaction_hash, tx);
 
-
-
+	saveUTXO();
+	std::cout << "[DEBUG] Transaction successfully created.\n";
 	return true;
 
+}
+
+void Blockchain::listTransactions() const {
+	tabulate::Table transactions_table;
+	transactions_table.add_row({ "Transaction Hash", "Sender", "Receiver", "Coins" });
+	for (const auto& [txid, tx] : transactions) {
+		transactions_table.add_row({tx.transaction_hash, toHex(tx.sender.data(), tx.sender.size()), toHex(tx.receiver.data(), tx.receiver.size()), std::to_string(tx.coins)});
+	}
+	std::cout << transactions_table << "\n";
+
+}
+
+void Blockchain::listUTXO() const {
+	tabulate::Table utxo_table;
+	utxo_table.add_row({ "UTXO Key", "Owner", "Coins" });
+	for (const auto& [utxo_key, out] : utxo) {
+		utxo_table.add_row({ utxo_key, toHex(out.owner.data(), out.owner.size()), std::to_string(out.coins)});
+	}
+	std::cout << utxo_table << "\n";
 }
 
 DBManager& Blockchain::getkeysDB() {

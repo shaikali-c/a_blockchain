@@ -7,9 +7,14 @@ find_package(unofficial-sodium CONFIG REQUIRED)
 
 add_executable(blockchain_tx
     "src/main.cpp"
-    "include/blockchain_tx.h"
- "include/databaseManager.h" "src/databaseManager.cpp" "include/cryptography.h" "include/keys.h" "include/pch.h" "src/keys.cpp" "include/common.h" "src/common.cpp" "include/transaction.h" "src/transaction.cpp" "include/blockchain.h" "src/blockchain.cpp")
+    "src/databaseManager.cpp"
+    "src/keys.cpp"
+    "src/common.cpp"
+    "src/transaction.cpp"
+    "src/blockchain.cpp"
+    "src/pch.cpp")
 
+target_compile_features(blockchain_tx PRIVATE cxx_std_17)
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_precompile_headers(${PROJECT_NAME} PRIVATE include/pch.h)
 target_link_libraries(blockchain_tx PRIVATE leveldb::leveldb unofficial-sodium::sodium)

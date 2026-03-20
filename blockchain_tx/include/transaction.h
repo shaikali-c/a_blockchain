@@ -32,6 +32,7 @@ public:
 	std::array<unsigned char, crypto_box_PUBLICKEYBYTES> receiver;
 	std::string transaction_hash, transaction_id;
 	uint64_t coins;
+	uint64_t timestamp;
 	Transaction(const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& s, const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& r, uint64_t c, const std::vector<UTXO>& outputs);
 };
 

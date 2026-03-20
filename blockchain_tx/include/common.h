@@ -3,7 +3,7 @@
 
 template <size_t N>
 void printKey(const std::array<unsigned char, N>& container) {
-    for (auto b : container)
+    for (const auto b : container)
         printf("%02x", b);
     printf("\n");
 }
