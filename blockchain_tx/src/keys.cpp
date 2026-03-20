@@ -26,19 +26,30 @@ void Keys::createKeys() {
 
 void Keys::saveKeys(const std::string& kname) {
     owner = kname;
-    std::string combined;
-    combined.reserve(_publicKey.size() + _secretKey.size());
-    combined.append(reinterpret_cast<const char*>(_publicKey.data()), _publicKey.size());
-    combined.append(reinterpret_cast<const char*>(_secretKey.data()), _secretKey.size());
+
+    const size_t pubSize = _publicKey.size();
+    const size_t secSize = _secretKey.size();
+
+    std::string combined(pubSize + secSize, '\0');
+
+    std::memcpy(combined.data(), _publicKey.data(), pubSize);
+    std::memcpy(combined.data() + pubSize, _secretKey.data(), secSize);
+
     keysDB.saveKey(kname, combined);
-    std::cout << "Keys saved: \n\t" << toHex(_publicKey.data(), _publicKey.size()) << "\n";
+
 }
 
 void Keys::loadKeys(const std::string& kname) {
     std::string serialized = keysDB.loadKey(kname);
-    const char* ptr = serialized.data();
-    std::copy(ptr, ptr + _publicKey.size(), _publicKey.begin());
-    ptr += _publicKey.size();
-    std::copy(ptr, ptr + _secretKey.size(), _secretKey.begin());
-    std::cout << "Keys loaded: \n\t" << toHex(_publicKey.data(), _publicKey.size()) << "\n";
+
+    const size_t pubSize = _publicKey.size();
+    const size_t secSize = _secretKey.size();
+
+    if (serialized.size() != pubSize + secSize) {
+        throw std::runtime_error("Invalid key data size");
+    }
+
+    std::memcpy(_publicKey.data(), serialized.data(), pubSize);
+    std::memcpy(_secretKey.data(), serialized.data() + pubSize, secSize);
+
 }

@@ -94,9 +94,9 @@ bool Blockchain::createTransaction(
 
 void Blockchain::listTransactions() const {
 	tabulate::Table transactions_table;
-	transactions_table.add_row({ "Transaction Hash", "Sender", "Receiver", "Coins" });
+	transactions_table.add_row({ "Transaction Hash", "Sender", "Receiver", "Coins", "Timestamp"});
 	for (const auto& [txid, tx] : transactions) {
-		transactions_table.add_row({tx.transaction_hash, toHex(tx.sender.data(), tx.sender.size()), toHex(tx.receiver.data(), tx.receiver.size()), std::to_string(tx.coins)});
+		transactions_table.add_row({tx.transaction_hash, toHex(tx.sender.data(), tx.sender.size()), toHex(tx.receiver.data(), tx.receiver.size()), std::to_string(tx.coins), std::to_string(tx.timestamp)});
 	}
 	std::cout << transactions_table << "\n";
 
