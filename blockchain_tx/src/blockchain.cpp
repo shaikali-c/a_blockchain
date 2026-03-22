@@ -1,7 +1,12 @@
 #include <blockchain.h>
 
 Blockchain::Blockchain() : keysDB("C:/Blockchain/Databases/keys"), utxoDB("C:/Blockchain/Databases/utxo"), transactionDB("C:/Blockchain/Databases/transactions") {
-	loadUTXO();
+
+	auto utxoFuture = std::async(std::launch::async, &Blockchain::loadUTXO, this);
+	auto txFuture = std::async(std::launch::async, &Blockchain::loadTransactions, this);
+
+	utxoFuture.get();
+	txFuture.get();
 }
 
 
@@ -44,6 +49,21 @@ void Blockchain::loadUTXO() {
 		std::cerr << "Iterator error: " << it->status().ToString() << "\n";
 	}
 }
+void Blockchain::loadTransactions() {
+	std::unique_ptr<leveldb::Iterator> it(transactionDB.db->NewIterator(leveldb::ReadOptions()));
+
+	for (it->SeekToFirst(); it->Valid(); it->Next()) {
+		std::string key = it->key().ToString();
+		std::string value = it->value().ToString();
+		Transaction tx;
+		tx.deserialize(value);
+		transactions[key] = tx;
+	}
+
+	if (!it->status().ok()) {
+		std::cerr << "Iterator error: " << it->status().ToString() << "\n";
+	}
+}
 
 bool Blockchain::createTransaction(
 	const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& s,
@@ -52,14 +72,14 @@ bool Blockchain::createTransaction(
 ) {
 
 	if (amount == 0) {
-		std::cout << "[DEBUG] Invalid amount.\n";
+		Logger::reject("Invalid amount provided");
 		return false;
 	}
 
 	auto [total, collect_outputs] = findUTXO(s, amount);
 
 	if (total < amount) {
-		std::cout << "[DEBUG] Not Enough Coins.\n";
+		Logger::reject("Not enough coins");
 		return false;
 	}
 
@@ -88,8 +108,8 @@ bool Blockchain::createTransaction(
 	transactions.emplace(tx.transaction_hash, tx);
 
 	saveUTXO();
-	//transactionDB.saveKey(tx.serialize());
-	std::cout << "[DEBUG] Transaction successfully created.\n";
+	transactionDB.saveKey(tx.transaction_hash, tx.serialize());
+	Logger::log("Transaction successfully created");
 	return true;
 
 }

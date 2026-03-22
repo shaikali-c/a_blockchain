@@ -1,9 +1,11 @@
 #pragma once
-#include <pch.h>
+#include "pch.h"
 #include <sodium.h>
-#include <transaction.h>
-#include <databaseManager.h>
-#include <common.h>
+#include "transaction.h"
+#include "databaseManager.h"
+#include "common.h"
+#include "logger.h"
+#include <future>
 
 static constexpr size_t PUBLIC_KEY_BYTES = crypto_box_PUBLICKEYBYTES;
 static constexpr size_t SECRET_KEY_BYTES = crypto_box_SECRETKEYBYTES;
@@ -29,6 +31,8 @@ public:
 	void init(const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& owner);
 
 	void loadUTXO();
+	void loadTransactions();
+
 	void saveUTXO();
 
 	std::pair<uint64_t, std::vector<std::string>> findUTXO(

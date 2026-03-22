@@ -10,17 +10,20 @@ int main()
 		std::cout << ":(";
 	}
 
-	Blockchain& blockchain = Blockchain::getInstance();
+	try {
+		Blockchain& blockchain = Blockchain::getInstance();
+		Keys shaik{ blockchain.getkeysDB(), "shaik" };
+		Keys ali{ blockchain.getkeysDB(), "ali" }, aasia{ blockchain.getkeysDB() }, rashed{ blockchain.getkeysDB() };
 
-	Keys shaik{ blockchain.getkeysDB(), "shaik" };
-	Keys ali{ blockchain.getkeysDB(), "ali" }, aasia{ blockchain.getkeysDB() }, rashed{ blockchain.getkeysDB() };
+		//blockchain.init(shaik.publicKey());
 
-	//blockchain.init(shaik.publicKey());
+		blockchain.createTransaction(shaik.publicKey(), rashed.publicKey(), 100);
 
-	blockchain.createTransaction(shaik.publicKey(), ali.publicKey(), 4000);
-		
-	blockchain.listUTXO();
-	//blockchain.listTransactions();
+		blockchain.listUTXO();
+		blockchain.listTransactions();
+	} catch(const char* err) {
+		std::cout << "[LOG] Blockchain initialization failed :(\n" << err << std::endl;
+	}
 
 	return 0;
 }
