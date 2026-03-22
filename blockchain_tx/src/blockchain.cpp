@@ -1,8 +1,9 @@
 #include <blockchain.h>
 
-Blockchain::Blockchain() : keysDB("C:/Blockchain/Databases/keys"), utxoDB("C:/Blockchain/Databases/utxo") {
+Blockchain::Blockchain() : keysDB("C:/Blockchain/Databases/keys"), utxoDB("C:/Blockchain/Databases/utxo"), transactionDB("C:/Blockchain/Databases/transactions") {
 	loadUTXO();
 }
+
 
 void Blockchain::init(const std::array<unsigned char, PUBLIC_KEY_BYTES>& owner) {
 	utxo["TX_HASH:1"] = UTXO{ 100000, owner };
@@ -87,6 +88,7 @@ bool Blockchain::createTransaction(
 	transactions.emplace(tx.transaction_hash, tx);
 
 	saveUTXO();
+	//transactionDB.saveKey(tx.serialize());
 	std::cout << "[DEBUG] Transaction successfully created.\n";
 	return true;
 

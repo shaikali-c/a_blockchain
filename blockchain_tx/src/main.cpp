@@ -10,17 +10,17 @@ int main()
 		std::cout << ":(";
 	}
 
-	Blockchain blockchain;
+	Blockchain& blockchain = Blockchain::getInstance();
 
 	Keys shaik{ blockchain.getkeysDB(), "shaik" };
 	Keys ali{ blockchain.getkeysDB(), "ali" }, aasia{ blockchain.getkeysDB() }, rashed{ blockchain.getkeysDB() };
 
 	//blockchain.init(shaik.publicKey());
 
-
+	blockchain.createTransaction(shaik.publicKey(), ali.publicKey(), 4000);
+		
 	blockchain.listUTXO();
 	//blockchain.listTransactions();
-
 
 	return 0;
 }
