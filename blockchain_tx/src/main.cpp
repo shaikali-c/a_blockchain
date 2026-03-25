@@ -12,13 +12,9 @@ int main()
 
 	try {
 		Blockchain& blockchain = Blockchain::getInstance();
-		Keys shaik{ blockchain.getkeysDB(), "shaik" };
-		Keys ali{ blockchain.getkeysDB(), "ali" }, aasia{ blockchain.getkeysDB() }, rashed{ blockchain.getkeysDB() };
-
+		Keys shaik{ blockchain.getkeysDB(), "shaiks" };
+		Keys ali{ blockchain.getkeysDB() }, aasia{ blockchain.getkeysDB() }, ashi{ blockchain.getkeysDB() };
 		//blockchain.init(shaik.publicKey());
-
-		blockchain.createTransaction(shaik.publicKey(), rashed.publicKey(), 100);
-
 		blockchain.listUTXO();
 		blockchain.listTransactions();
 	} catch(const char* err) {

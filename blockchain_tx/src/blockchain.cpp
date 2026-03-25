@@ -6,9 +6,15 @@ Blockchain::Blockchain() : keysDB("C:/Blockchain/Databases/keys"), utxoDB("C:/Bl
 	auto txFuture = std::async(std::launch::async, &Blockchain::loadTransactions, this);
 
 	utxoFuture.get();
+	Logger::log("UTXO loaded");
 	txFuture.get();
+	Logger::log("Transactions loaded");
 }
 
+Blockchain& Blockchain::getInstance() {
+	static Blockchain blockchainInstance;
+	return blockchainInstance;
+}
 
 void Blockchain::init(const std::array<unsigned char, PUBLIC_KEY_BYTES>& owner) {
 	utxo["TX_HASH:1"] = UTXO{ 100000, owner };
@@ -22,7 +28,7 @@ void Blockchain::saveUTXO() {
 }
 
 std::pair<uint64_t, std::vector<std::string>> Blockchain::findUTXO(
-	const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& owner, uint64_t amount
+	const std::array<unsigned char, PUBLIC_KEY_BYTES>& owner, uint64_t amount
 ) {
 	uint64_t total = 0;
 	std::vector<std::string> collect_outputs;
@@ -66,8 +72,8 @@ void Blockchain::loadTransactions() {
 }
 
 bool Blockchain::createTransaction(
-	const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& s,
-	const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& r,
+	const std::array<unsigned char, PUBLIC_KEY_BYTES>& s,
+	const std::array<unsigned char, PUBLIC_KEY_BYTES>& r,
 	uint64_t amount
 ) {
 

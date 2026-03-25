@@ -12,7 +12,7 @@ add_executable(blockchain_tx
     "src/common.cpp"
     "src/transaction.cpp"
     "src/blockchain.cpp"
-    "src/pch.cpp" "src/main.cpp" "include/logger.h" "src/logger.cpp")
+    "src/pch.cpp" "src/main.cpp" "include/logger.h" "src/logger.cpp" "src/cryptography.cpp" "include/block.h")
 
 target_compile_features(blockchain_tx PRIVATE cxx_std_17)
 target_include_directories(${PROJECT_NAME} PRIVATE include)
