@@ -7,7 +7,17 @@ std::string toHex(const unsigned char* data, size_t size) {
     return oss.str();
 }
 
-std::string _hash(const std::string& s) {
+std::array<unsigned char, crypto_generichash_BYTES> _hashBytes(const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& container) {
+    std::array<unsigned char, crypto_generichash_BYTES> hash;
+    crypto_generichash(
+        hash.data(), hash.size(),
+        container.data(), container.size(),
+        NULL, 0
+    );
+    return hash;
+}
+
+std::string _hashStr(const std::string& s) {
     std::array<unsigned char, crypto_generichash_BYTES> hash;
     crypto_generichash(
         hash.data(), hash.size(),

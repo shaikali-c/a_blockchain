@@ -1,17 +1,5 @@
 #include "Transaction.h"
 
-// Helper function for hex conversion (if not already in common.h)
-static std::string toHex(const unsigned char* data, size_t len) {
-    static const char* hex_chars = "0123456789abcdef";
-    std::string result;
-    result.reserve(len * 2);
-    for (size_t i = 0; i < len; ++i) {
-        result.push_back(hex_chars[data[i] >> 4]);
-        result.push_back(hex_chars[data[i] & 0x0F]);
-    }
-    return result;
-}
-
 static std::string fromHex(const std::string& hex) {
     if (hex.size() % 2 != 0) {
         throw std::runtime_error("Invalid hex string");

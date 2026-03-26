@@ -8,16 +8,20 @@ class Keys {
 private:
 	std::array<unsigned char, crypto_box_PUBLICKEYBYTES> _publicKey;
 	std::array<unsigned char, crypto_box_SECRETKEYBYTES> _secretKey;
-	DBManager& keysDB;
+	static constexpr size_t ADDR_SIZE = crypto_generichash_BYTES;
 
 public:
-	std::string owner;
-	Keys(DBManager& db, const std::string& kname);
-	Keys(DBManager& db);
+	Keys(const std::string& kName);
+	Keys();
+
 	void createKeys();
-	void saveKeys(const std::string& kname);
 	void printKeys() const;
-	void setOwner(const std::string& o);
-	void loadKeys(const std::string& kname);
+	void setOwner(const std::string&);
+
+	std::string owner;
+	std::string serializeKeys() const;
+	void deserializeKeys(const std::string&);
+
 	const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& publicKey() const;
+	std::array<unsigned char, ADDR_SIZE> addr;
 };

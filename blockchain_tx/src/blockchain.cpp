@@ -1,6 +1,7 @@
 #include <blockchain.h>
 
-Blockchain::Blockchain() : keysDB("C:/Blockchain/Databases/keys"), utxoDB("C:/Blockchain/Databases/utxo"), transactionDB("C:/Blockchain/Databases/transactions") {
+// TODO: Make the path portable
+Blockchain::Blockchain(): utxoDB("C:/Blockchain/Databases/utxo"), transactionDB("C:/Blockchain/Databases/transactions") {
 
 	auto utxoFuture = std::async(std::launch::async, &Blockchain::loadUTXO, this);
 	auto txFuture = std::async(std::launch::async, &Blockchain::loadTransactions, this);
@@ -16,8 +17,8 @@ Blockchain& Blockchain::getInstance() {
 	return blockchainInstance;
 }
 
-void Blockchain::init(const std::array<unsigned char, PUBLIC_KEY_BYTES>& owner) {
-	utxo["TX_HASH:1"] = UTXO{ 100000, owner };
+void Blockchain::init(const std::array<unsigned char, crypto_generichash_BYTES>& owner) {
+	utxo["TX_HASH:1"] = UTXO{ 100000, owner};
 	saveUTXO();
 }
 
@@ -28,7 +29,7 @@ void Blockchain::saveUTXO() {
 }
 
 std::pair<uint64_t, std::vector<std::string>> Blockchain::findUTXO(
-	const std::array<unsigned char, PUBLIC_KEY_BYTES>& owner, uint64_t amount
+	const std::array<unsigned char, crypto_generichash_BYTES>& owner, uint64_t amount
 ) {
 	uint64_t total = 0;
 	std::vector<std::string> collect_outputs;
@@ -72,8 +73,8 @@ void Blockchain::loadTransactions() {
 }
 
 bool Blockchain::createTransaction(
-	const std::array<unsigned char, PUBLIC_KEY_BYTES>& s,
-	const std::array<unsigned char, PUBLIC_KEY_BYTES>& r,
+	const std::array<unsigned char, crypto_generichash_BYTES>& s,
+	const std::array<unsigned char, crypto_generichash_BYTES>& r,
 	uint64_t amount
 ) {
 
@@ -96,7 +97,6 @@ bool Blockchain::createTransaction(
 
 	std::vector<UTXO> outputs;
 	std::vector<Input> inputs;
-
 	outputs.emplace_back(amount, r);
 
 	if (total > amount) {
@@ -137,8 +137,4 @@ void Blockchain::listUTXO() const {
 		utxo_table.add_row({ utxo_key, toHex(out.owner.data(), out.owner.size()), std::to_string(out.coins)});
 	}
 	std::cout << utxo_table << "\n";
-}
-
-DBManager& Blockchain::getkeysDB() {
-	return keysDB;
 }

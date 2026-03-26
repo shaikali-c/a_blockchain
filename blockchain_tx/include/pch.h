@@ -1,17 +1,25 @@
+// pch.h
 #pragma once
 
-#include <string>
-#include <stdexcept>
-#include <iostream>
-#include <iomanip>
-#include <cstdint>
-#include <chrono>
-#include <ctime>
-#include <sstream>
-#include <vector>
-#include <utility>
+// ------------------------------
+// C++ Standard Library
+// ------------------------------
 #include <array>
-#include <unordered_map>
+#include <chrono>
+#include <cstdint>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
 #include <memory>
+#include <sstream>
+#include <stdexcept>
+#include <string>
+#include <unordered_map>
+#include <utility>
+#include <vector>
+
+// ------------------------------
+// Third-Party Libraries
+// ------------------------------
 #include <leveldb/db.h>
 #include <tabulate.hpp>

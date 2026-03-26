@@ -9,4 +9,7 @@ void printKey(const std::array<unsigned char, N>& container) {
 }
 
 std::string toHex(const unsigned char* data, size_t size);
-std::string _hash(const std::string& s);
+std::array<unsigned char, crypto_generichash_BYTES> _hashBytes(const std::string& s);
+std::array<unsigned char, crypto_generichash_BYTES> _hashBytes(const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& container);
+std::string _hashStr(const std::string& s);
+

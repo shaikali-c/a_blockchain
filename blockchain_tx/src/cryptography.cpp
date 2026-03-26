@@ -7,7 +7,8 @@ std::string computeMerkleRoot(const std::vector<std::string>& transactions) {
 
     std::vector<std::string> currentLevel;
     for (const auto& tx : transactions) {
-        currentLevel.push_back(_hash(tx));
+        auto hash = _hashStr(tx);
+        currentLevel.push_back(hash);
     }
 
     while (currentLevel.size() > 1) {
@@ -16,10 +17,10 @@ std::string computeMerkleRoot(const std::vector<std::string>& transactions) {
         for (size_t i = 0; i < currentLevel.size(); i += 2) {
             if (i + 1 < currentLevel.size()) {
                 std::string combined = currentLevel[i] + currentLevel[i + 1];
-                nextLevel.push_back(_hash(combined));
+                nextLevel.push_back(_hashStr(combined));
             }
             else {
-                nextLevel.push_back(_hash(currentLevel[i] + currentLevel[i]));
+                nextLevel.push_back(_hashStr(currentLevel[i] + currentLevel[i]));
             }
         }
 

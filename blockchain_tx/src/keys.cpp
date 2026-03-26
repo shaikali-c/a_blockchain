@@ -1,10 +1,11 @@
 #include <keys.h>
 
-Keys::Keys(DBManager& db, const std::string& kname) : keysDB(db), owner(kname) {
-    loadKeys(kname);
+Keys::Keys(const std::string& kName): owner(kName), addr(_hashBytes(_publicKey)) {
+    deserializeKeys(kName);
+    addr = _hashBytes(_publicKey);
 }
 
-Keys::Keys(DBManager& db) : keysDB(db) {
+Keys::Keys(): addr(_hashBytes(_publicKey)) {
     createKeys();
 }
 
@@ -24,8 +25,7 @@ void Keys::createKeys() {
     crypto_box_keypair(_publicKey.data(), _secretKey.data());
 }
 
-void Keys::saveKeys(const std::string& kname) {
-    owner = kname;
+std::string Keys::serializeKeys() const {
 
     const size_t pubSize = _publicKey.size();
     const size_t secSize = _secretKey.size();
@@ -35,19 +35,15 @@ void Keys::saveKeys(const std::string& kname) {
     std::memcpy(combined.data(), _publicKey.data(), pubSize);
     std::memcpy(combined.data() + pubSize, _secretKey.data(), secSize);
 
-    keysDB.saveKey(kname, combined);
+    return combined;
 
 }
 
-void Keys::loadKeys(const std::string& kname) {
-    std::string serialized = keysDB.loadKey(kname);
-
+void Keys::deserializeKeys(const std::string& serialized) {
     const size_t pubSize = _publicKey.size();
     const size_t secSize = _secretKey.size();
 
-    if (serialized.size() != pubSize + secSize) {
-        throw std::runtime_error("Invalid key data size");
-    }
+    if (serialized.size() != pubSize + secSize) throw std::runtime_error("Invalid key data size");
 
     std::memcpy(_publicKey.data(), serialized.data(), pubSize);
     std::memcpy(_secretKey.data(), serialized.data() + pubSize, secSize);
