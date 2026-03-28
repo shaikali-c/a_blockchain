@@ -48,7 +48,7 @@ UTXO::UTXO(const std::string& data) {
 }
 
 void UTXO::deserialize(const std::string& data) {
-    const size_t expected_size = sizeof(uint64_t) + crypto_box_PUBLICKEYBYTES;
+    const size_t expected_size = sizeof(uint64_t) + crypto_sign_PUBLICKEYBYTES;
     if (data.size() != expected_size) {
         throw std::runtime_error("Invalid UTXO serialized data size");
     }
@@ -70,8 +70,8 @@ void UTXO::deserializeHex(const std::string& hex) {
 
 // Transaction implementation
 Transaction::Transaction(
-    const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& s,
-    const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& r,
+    const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& s,
+    const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& r,
     uint64_t c,
     const std::vector<UTXO>& o
 ) : sender(s), receiver(r), coins(c), outputs(o) {

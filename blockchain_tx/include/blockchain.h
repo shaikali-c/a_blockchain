@@ -5,6 +5,7 @@
 #include "databaseManager.h"
 #include "common.h"
 #include "logger.h"
+#include "network.h"
 #include <future>
 #include <sodium.h>
 
@@ -13,8 +14,7 @@
 class Blockchain {
 private:
 
-	static constexpr size_t PUBLIC_KEY_BYTES = crypto_box_PUBLICKEYBYTES;
-	static constexpr size_t SECRET_KEY_BYTES = crypto_box_SECRETKEYBYTES;
+	static constexpr size_t PUBLIC_KEY_BYTES = crypto_sign_PUBLICKEYBYTES;
 
 	Blockchain();
 	Blockchain(const Blockchain&) = delete;
@@ -32,13 +32,18 @@ private:
 
 	DBManager transactionDB;
 	DBManager utxoDB;
+	Network& server;
+
+	void _getUTXO();
 	
 public:
 	static Blockchain& Blockchain::getInstance();
+	void _getTransactions();
 
 	void init(const std::array<unsigned char, crypto_generichash_BYTES>& owner);
 	void listTransactions() const;
 	void listUTXO() const;
+	void startServer();
 
 	bool createTransaction(
 		const std::array<unsigned char, crypto_generichash_BYTES>& s,

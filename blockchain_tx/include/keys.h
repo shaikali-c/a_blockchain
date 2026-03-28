@@ -6,8 +6,8 @@
 
 class Keys {
 private:
-	std::array<unsigned char, crypto_box_PUBLICKEYBYTES> _publicKey;
-	std::array<unsigned char, crypto_box_SECRETKEYBYTES> _secretKey;
+	std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> _publicKey;
+	std::array<unsigned char, crypto_sign_SECRETKEYBYTES> _secretKey;
 	static constexpr size_t ADDR_SIZE = crypto_generichash_BYTES;
 
 public:
@@ -21,7 +21,8 @@ public:
 	std::string owner;
 	std::string serializeKeys() const;
 	void deserializeKeys(const std::string&);
+	std::vector<unsigned char> sign(const std::string& data);
 
-	const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& publicKey() const;
+	const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey() const;
 	std::array<unsigned char, ADDR_SIZE> addr;
 };

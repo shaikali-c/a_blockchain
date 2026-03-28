@@ -5,11 +5,11 @@
 
 struct UTXO {
     uint64_t coins;
-    std::array<unsigned char, crypto_box_PUBLICKEYBYTES> owner;
+    std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> owner;
 
     UTXO() : coins(0), owner{} {}
     UTXO(const std::string& data);
-    UTXO(uint64_t c, const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& o)
+    UTXO(uint64_t c, const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& o)
         : coins(c), owner(o) {
     }
 
@@ -33,15 +33,15 @@ class Transaction {
 public:
     std::vector<Input> inputs;
     std::vector<UTXO> outputs;
-    std::array<unsigned char, crypto_box_PUBLICKEYBYTES> sender;
-    std::array<unsigned char, crypto_box_PUBLICKEYBYTES> receiver;
+    std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> sender;
+    std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> receiver;
     std::string transaction_hash, transaction_id;
     uint64_t coins;
     uint64_t timestamp;
 
     Transaction() : coins(0), timestamp(0) {}
-    Transaction(const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& s,
-        const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& r,
+    Transaction(const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& s,
+        const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& r,
         uint64_t c, const std::vector<UTXO>& outputs);
 
     std::string serialize() const;

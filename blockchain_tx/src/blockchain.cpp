@@ -1,7 +1,7 @@
 #include <blockchain.h>
 
 // TODO: Make the path portable
-Blockchain::Blockchain(): utxoDB("C:/Blockchain/Databases/utxo"), transactionDB("C:/Blockchain/Databases/transactions") {
+Blockchain::Blockchain(): utxoDB("utxo"), transactionDB("transactions"), server(Network::getInstance()) {
 
 	auto utxoFuture = std::async(std::launch::async, &Blockchain::loadUTXO, this);
 	auto txFuture = std::async(std::launch::async, &Blockchain::loadTransactions, this);
@@ -137,4 +137,22 @@ void Blockchain::listUTXO() const {
 		utxo_table.add_row({ utxo_key, toHex(out.owner.data(), out.owner.size()), std::to_string(out.coins)});
 	}
 	std::cout << utxo_table << "\n";
+}
+
+void Blockchain::startServer() {
+	server.start();
+}
+
+void Blockchain::_getTransactions() {
+	Json::Value transacitons_list(Json::arrayValue);
+	for (const auto& pair : transactions) {
+		Json::Value tx;
+		tx["transaction_hash"] = pair.first;
+		tx["sender"] = toHex(pair.second.sender.data(), pair.second.sender.size());
+		tx["receiver"] = toHex(pair.second.receiver.data(), pair.second.receiver.size());
+		tx["amount"] = pair.second.coins;
+		tx["time"] = pair.second.timestamp;
+		transacitons_list.append(tx);
+	}
+	server.getReq("/transactions", transacitons_list);
 }

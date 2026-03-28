@@ -13,7 +13,7 @@ void Keys::setOwner(const std::string& o) {
     owner = o;
 }
 
-const std::array<unsigned char, crypto_box_PUBLICKEYBYTES>& Keys::publicKey() const {
+const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& Keys::publicKey() const {
     return _publicKey;
 }
 
@@ -22,7 +22,27 @@ void Keys::printKeys() const {
 }
 
 void Keys::createKeys() {
-    crypto_box_keypair(_publicKey.data(), _secretKey.data());
+    crypto_sign_keypair(_publicKey.data(), _secretKey.data());
+}
+
+std::vector<unsigned char> Keys::sign(const std::string& data) {
+    std::vector<unsigned char> signature(crypto_sign_BYTES);
+    unsigned long long signature_len = 0;
+
+    int result = crypto_sign_detached(
+        signature.data(),
+        &signature_len,
+        reinterpret_cast<const unsigned char*>(data.data()),
+        data.size(),
+        _secretKey.data()
+    );
+
+    if (result != 0) {
+        throw std::runtime_error("Signing failed"); 
+    }
+
+    signature.resize(signature_len);
+    return signature;
 }
 
 std::string Keys::serializeKeys() const {

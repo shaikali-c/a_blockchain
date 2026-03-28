@@ -8,23 +8,26 @@
 
 int main()
 {
+
 	if (sodium_init() < 0) {
 		Logger::reject("Library initilization failed :(");
 	}
-
 	try {
 		Blockchain& blockchain = Blockchain::getInstance();
-		DBManager keysDB{ "C:/Blockchain/Databases/keys" };
-		Keys shaik{ keysDB.loadKey("shaiks_keys") }, ali{ keysDB.loadKey("ali_keys") }, aasia{ keysDB.loadKey("aasias_keys") };
-		shaik.printKeys();
-		Logger::log(toHex(shaik.addr.data(), shaik.addr.size()));
-		blockchain.createTransaction(shaik.addr, aasia.addr, 500);
+		DBManager keysDB{ "./keys" };
+
+		Keys shaik{ keysDB.loadKey("shaik") }, ali{ keysDB.loadKey("ali") };
+
+		blockchain.init(shaik.addr);
+		blockchain.createTransaction(shaik.addr, ali.addr, 500);
 		blockchain.listUTXO();
 		blockchain.listTransactions();
-	} catch(...) {
-		Logger::log("Blockchain initialization failed :(\n");
-	}
+		blockchain._getTransactions();
+		blockchain.startServer();
 
+	} catch(...) {
+		Logger::error("Blockchain initialization failed :(\n");
+	}
 	std::cin.get();
 
 	return 0;
