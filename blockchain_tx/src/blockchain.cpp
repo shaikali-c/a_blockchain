@@ -1,7 +1,7 @@
 #include <blockchain.h>
 
 // TODO: Make the path portable
-Blockchain::Blockchain(): utxoDB("utxo"), transactionDB("transactions"), server(Network::getInstance()) {
+Blockchain::Blockchain(): utxoDB("utxo"), transactionDB("transactions"), server(Server::getInstance()) {
 
 	auto utxoFuture = std::async(std::launch::async, &Blockchain::loadUTXO, this);
 	auto txFuture = std::async(std::launch::async, &Blockchain::loadTransactions, this);
@@ -143,6 +143,10 @@ void Blockchain::startServer() {
 	server.start();
 }
 
+void Blockchain::setupRoutes() {
+	
+}
+
 void Blockchain::_getTransactions() {
 	Json::Value transacitons_list(Json::arrayValue);
 	for (const auto& pair : transactions) {
@@ -155,4 +159,12 @@ void Blockchain::_getTransactions() {
 		transacitons_list.append(tx);
 	}
 	server.getReq("/transactions", transacitons_list);
+	server.postReq("/create_transaction",
+		[this](
+			const std::array<unsigned char, crypto_generichash_BYTES>& s,
+			const std::array<unsigned char, crypto_generichash_BYTES>& r,
+			uint64_t amount
+			) {
+				return createTransaction(s, r, amount);
+		});
 }

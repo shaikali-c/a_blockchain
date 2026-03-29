@@ -16,17 +16,22 @@ int main()
 		Blockchain& blockchain = Blockchain::getInstance();
 		DBManager keysDB{ "./keys" };
 
+		//Keys shaik, ali;
+		//keysDB.saveKey("shaik", shaik.serializeKeys());
+		//keysDB.saveKey("ali", ali.serializeKeys());
+
 		Keys shaik{ keysDB.loadKey("shaik") }, ali{ keysDB.loadKey("ali") };
 
-		blockchain.init(shaik.addr);
-		blockchain.createTransaction(shaik.addr, ali.addr, 500);
+		//blockchain.init(shaik.addr);
+		//blockchain.createTransaction(shaik.addr, ali.addr, 500);
+
 		blockchain.listUTXO();
 		blockchain.listTransactions();
 		blockchain._getTransactions();
 		blockchain.startServer();
 
 	} catch(...) {
-		Logger::error("Blockchain initialization failed :(\n");
+		Logger::error("Blockchain initialization failed :(");
 	}
 	std::cin.get();
 

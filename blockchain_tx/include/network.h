@@ -1,10 +1,12 @@
 #pragma once
-#include <drogon/drogon.h>
+#include "pch.h"
+#include "common.h"
+#include <sodium.h>
 
-class Network {
+class Server {
 public:
-    static Network& getInstance() {
-        static Network instance;
+    static Server& getInstance() {
+        static Server instance;
         return instance;
     }
 
@@ -15,14 +17,16 @@ public:
         drogon::app().run();
     }
 
-    void getReq(const std::string& path, const Json::Value& data);
+    void getReq(const std::string& path, Json::Value data);
+    void postReq(const std::string& path, std::function<bool(const std::array<unsigned char, crypto_generichash_BYTES>& s, const std::array<unsigned char, crypto_generichash_BYTES>& r, uint64_t amount)>);
+
 
 private:
-    Network() = default;
-    ~Network() = default;
+    Server() = default;
+    ~Server() = default;
 
-    Network(const Network&) = delete;
-    Network& operator=(const Network&) = delete;
+    Server(const Server&) = delete;
+    Server& operator=(const Server&) = delete;
 
     bool started = false;
 };

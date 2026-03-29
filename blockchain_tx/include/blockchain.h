@@ -9,8 +9,6 @@
 #include <future>
 #include <sodium.h>
 
-
-
 class Blockchain {
 private:
 
@@ -32,8 +30,8 @@ private:
 
 	DBManager transactionDB;
 	DBManager utxoDB;
-	Network& server;
-
+	Server& server;
+	void setupRoutes();
 	void _getUTXO();
 	
 public:
