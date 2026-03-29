@@ -20,10 +20,15 @@ void Server::postReq(const std::string& path, std::function<bool(
         auto jsonBody = req->getJsonObject();
         Json::Value response;
 
-        if (jsonBody) {
-            std::string sender_serialize = (*jsonBody)["sender"].asString();
-            std::string receiver_serialize = (*jsonBody)["receiver"].asString();
-            uint64_t amount = (*jsonBody)["amount"].asInt64();
+        auto start = std::chrono::high_resolution_clock::now();
+        
+
+        for (const auto& tx : *jsonBody) {
+            if (!tx.isObject()) continue;
+
+            std::string sender_serialize = tx["sender"].asString();
+            std::string receiver_serialize = tx["receiver"].asString();
+            uint64_t amount = tx["amount"].asUInt64();
 
             std::array<unsigned char, crypto_generichash_BYTES> sender;
             std::array<unsigned char, crypto_generichash_BYTES> receiver;
@@ -31,17 +36,26 @@ void Server::postReq(const std::string& path, std::function<bool(
             toBytes(sender_serialize, sender.data(), sender.size());
             toBytes(receiver_serialize, receiver.data(), receiver.size());
 
-            bool validTX = handler(sender, receiver, amount);
-            if (validTX) {
-                response["status"] = "success";
-            }
-            else {
-                response["status"] = "Not Enough Coins";
-            }
+            handler(sender, receiver, amount);
         }
-        else {
-            response["error"] = "Invalid JSON body";
-        }
+
+        auto end = std::chrono::high_resolution_clock::now();
+        auto duration = end - start;
+
+        std::cout << "Time taken: "
+            << std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count()
+            << " nanoseconds\n";
+        std::cout << "Time taken: "
+            << std::chrono::duration_cast<std::chrono::microseconds>(duration).count()
+            << " microseconds\n";
+        std::cout << "Time taken: "
+            << std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()
+            << " milliseconds\n";
+        std::cout << "Time taken: "
+            << std::chrono::duration_cast<std::chrono::seconds>(duration).count()
+            << " seconds\n";
+
+        response["status"] = "batch success";
 
         callback(HttpResponse::newHttpJsonResponse(response));
         }, { Post });

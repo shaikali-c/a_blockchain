@@ -23,11 +23,10 @@ int main()
 		Keys shaik{ keysDB.loadKey("shaik") }, ali{ keysDB.loadKey("ali") };
 
 		//blockchain.init(shaik.addr);
-		//blockchain.createTransaction(shaik.addr, ali.addr, 500);
+		blockchain.createTransaction(shaik.addr, ali.addr, 1);
 
 		blockchain.listUTXO();
 		blockchain.listTransactions();
-		blockchain._getTransactions();
 		blockchain.startServer();
 
 	} catch(...) {

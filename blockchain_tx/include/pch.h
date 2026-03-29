@@ -1,10 +1,8 @@
 // pch.h
 #pragma once
 
-
-// 🔥 CRITICAL FIX (must be FIRST)
 #define WIN32_LEAN_AND_MEAN
-#define _WINSOCKAPI_   // 🚫 block winsock.h
+#define _WINSOCKAPI_
 
 // ------------------------------
 // C++ Standard Library

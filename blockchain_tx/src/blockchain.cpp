@@ -140,11 +140,12 @@ void Blockchain::listUTXO() const {
 }
 
 void Blockchain::startServer() {
+	setupRoutes();
 	server.start();
 }
 
 void Blockchain::setupRoutes() {
-	
+	_getTransactions();
 }
 
 void Blockchain::_getTransactions() {
