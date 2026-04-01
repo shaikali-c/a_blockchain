@@ -15,17 +15,15 @@ int main()
 		Blockchain& blockchain = Blockchain::getInstance();
 		Logger::log("Blockchain initialized :)");
 		DBManager keysDB{ "./keys" };
+			
+		Keys shaik, ali;
+		keysDB.saveKey("shaik", shaik.serializeKeys());
+		keysDB.saveKey("ali", ali.serializeKeys());
 
-		//Keys shaik, ali;
-		//keysDB.saveKey("shaik", shaik.serializeKeys());
-		//keysDB.saveKey("ali", ali.serializeKeys());
+		//Keys shaik{ keysDB.loadKey("shaik") }, ali{ keysDB.loadKey("ali") };
 
-		Keys shaik{ keysDB.loadKey("shaik") }, ali{ keysDB.loadKey("ali") };
-
-		//Transaction tx{ shaik.addr, ali.addr, 500, {} };
-
-		//blockchain.init(shaik.addr);
-		//blockchain.createTransaction(shaik.addr, ali.addr, 1);
+		blockchain.init(shaik.addr);
+		blockchain.createTransaction(shaik.addr, ali.addr, 1);
 
 		//blockchain.listUTXO();
 		//blockchain.listTransactions();

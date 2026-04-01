@@ -9,6 +9,7 @@ Blockchain::Blockchain(): utxoDB("utxo"), transactionDB("transactions") {
 	auto utxoFuture = std::async(std::launch::async, &Blockchain::loadUTXO, this);
 	auto txFuture = std::async(std::launch::async, &Blockchain::loadTransactions, this);
 
+
 	utxoFuture.get();
 	Logger::log("UTXO loaded");
 	txFuture.get();
@@ -110,7 +111,7 @@ bool Blockchain::createTransaction(
 
 	for (size_t i = 0; i < outputs.size(); i++) {
 		inputs.emplace_back(tx.transaction_hash, static_cast<uint32_t>(i));
-		utxo[tx.transaction_hash + ":" + std::to_string(i)] = outputs[i];
+		 utxo[tx.transaction_hash + ":" + std::to_string(i)] = outputs[i];
 	}
 
 	tx.inputs = inputs;

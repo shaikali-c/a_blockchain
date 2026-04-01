@@ -40,7 +40,7 @@ private:
 	static constexpr std::string_view LOGS_FOLDER = "logs";
 	
 public:
-	static Blockchain& Blockchain::getInstance();
+	static Blockchain& getInstance();
 
 	void init(const std::array<unsigned char, crypto_generichash_BYTES>& owner);
 	void listTransactions() const;
@@ -52,4 +52,5 @@ public:
 		const std::array<unsigned char, crypto_generichash_BYTES>& r,
 		uint64_t coins
 	);
+
 };

@@ -1,5 +1,10 @@
 #include "Transaction.h"
 
+
+std::string Input::getUTXOKey() const {
+    return transaction_hash + std::to_string(output_index);
+}
+
 static std::string fromHex(const std::string& hex) {
     if (hex.size() % 2 != 0) {
         throw std::runtime_error("Invalid hex string");
@@ -74,7 +79,7 @@ Transaction::Transaction(
     const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& r,
     uint64_t c,
     const std::vector<UTXO>& o
-) : sender(s), receiver(r), coins(c), outputs(o) {
+) : sender(s), receiver(r), coins(c), outputs(o), is_valid(true) {
 
     timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::high_resolution_clock::now().time_since_epoch()

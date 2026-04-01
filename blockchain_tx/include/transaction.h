@@ -27,11 +27,14 @@ struct Input {
     Input(const std::string& tx_hash, uint32_t oi)
         : transaction_hash(tx_hash), output_index(oi) {
     }
+
+    std::string getUTXOKey() const;
 };
 
 class Transaction {
 public:
     std::vector<Input> inputs;
+    bool is_valid;
     std::vector<UTXO> outputs;
     std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> sender;
     std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> receiver;

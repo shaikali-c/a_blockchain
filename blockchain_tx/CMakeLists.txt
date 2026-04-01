@@ -7,7 +7,7 @@ find_package(leveldb CONFIG REQUIRED)
 find_package(unofficial-sodium CONFIG REQUIRED)
 find_package(Drogon CONFIG REQUIRED)
 
-set(CMAKE_CXX_STANDARD 17)
+set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
