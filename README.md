@@ -61,7 +61,7 @@ POST /create_transaction				— create a new transaction
 
 ## Known issues / todo
 
-- [ ] DB path is hardcoded — needs to be made portable
+- [ ] DB path is hardcoded, needs to be made portable
 - [ ] No block structure yet (it's transaction/UTXO focused right now)
 - [ ] Blockchain export to a transferable file
 - [ ] No P2P networking
