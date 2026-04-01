@@ -146,6 +146,7 @@ void Blockchain::startServer() {
 
 void Blockchain::setupRoutes() {
 	_getTransactions();
+	_createTransaction();
 }
 
 void Blockchain::_getTransactions() {
@@ -160,6 +161,9 @@ void Blockchain::_getTransactions() {
 		transacitons_list.append(tx);
 	}
 	server.getReq("/transactions", transacitons_list);
+}
+
+void Blockchain::_createTransaction() {
 	server.postReq("/create_transaction",
 		[this](
 			const std::array<unsigned char, crypto_generichash_BYTES>& s,
@@ -167,5 +171,5 @@ void Blockchain::_getTransactions() {
 			uint64_t amount
 			) {
 				return createTransaction(s, r, amount);
-		});
+	});
 }

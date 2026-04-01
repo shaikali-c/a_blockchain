@@ -259,7 +259,6 @@ void Transaction::deserialize(const std::string& data) {
         transaction_id.clear();
     }
 
-    // Deserialize inputs
     uint32_t input_count;
     if (offset + sizeof(input_count) > data.size()) {
         throw std::runtime_error("Invalid transaction data: insufficient data for input count");
@@ -306,6 +305,7 @@ void Transaction::deserialize(const std::string& data) {
 
     outputs.clear();
     outputs.reserve(output_count);
+
     for (uint32_t i = 0; i < output_count; ++i) {
         uint32_t output_size;
         if (offset + sizeof(output_size) > data.size()) {

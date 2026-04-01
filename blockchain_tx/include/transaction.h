@@ -39,7 +39,7 @@ public:
     uint64_t coins;
     uint64_t timestamp;
 
-    Transaction() : coins(0), timestamp(0) {}
+    Transaction() : coins(0), timestamp(0), receiver{}, sender{} {}
     Transaction(const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& s,
         const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& r,
         uint64_t c, const std::vector<UTXO>& outputs);

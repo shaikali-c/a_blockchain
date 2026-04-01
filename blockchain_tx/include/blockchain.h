@@ -5,7 +5,7 @@
 #include "databaseManager.h"
 #include "common.h"
 #include "logger.h"
-#include "network.h"
+#include "server.h"
 #include <future>
 #include <sodium.h>
 
@@ -37,6 +37,7 @@ private:
 public:
 	static Blockchain& Blockchain::getInstance();
 	void _getTransactions();
+	void _createTransaction();
 
 	void init(const std::array<unsigned char, crypto_generichash_BYTES>& owner);
 	void listTransactions() const;

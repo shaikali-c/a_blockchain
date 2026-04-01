@@ -1,4 +1,4 @@
-#include "network.h"
+#include "server.h"
 
 using namespace drogon;
 using Callback = std::function<void(const HttpResponsePtr&)>;
@@ -20,8 +20,6 @@ void Server::postReq(const std::string& path, std::function<bool(
         auto jsonBody = req->getJsonObject();
         Json::Value response;
 
-        auto start = std::chrono::high_resolution_clock::now();
-        
 
         for (const auto& tx : *jsonBody) {
             if (!tx.isObject()) continue;
@@ -38,22 +36,6 @@ void Server::postReq(const std::string& path, std::function<bool(
 
             handler(sender, receiver, amount);
         }
-
-        auto end = std::chrono::high_resolution_clock::now();
-        auto duration = end - start;
-
-        std::cout << "Time taken: "
-            << std::chrono::duration_cast<std::chrono::nanoseconds>(duration).count()
-            << " nanoseconds\n";
-        std::cout << "Time taken: "
-            << std::chrono::duration_cast<std::chrono::microseconds>(duration).count()
-            << " microseconds\n";
-        std::cout << "Time taken: "
-            << std::chrono::duration_cast<std::chrono::milliseconds>(duration).count()
-            << " milliseconds\n";
-        std::cout << "Time taken: "
-            << std::chrono::duration_cast<std::chrono::seconds>(duration).count()
-            << " seconds\n";
 
         response["status"] = "batch success";
 
