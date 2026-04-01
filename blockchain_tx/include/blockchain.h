@@ -5,7 +5,6 @@
 #include "databaseManager.h"
 #include "common.h"
 #include "logger.h"
-#include "server.h"
 #include <future>
 #include <sodium.h>
 
@@ -30,14 +29,18 @@ private:
 
 	DBManager transactionDB;
 	DBManager utxoDB;
-	Server& server;
+
 	void setupRoutes();
 	void _getUTXO();
+
+	void _getTransaction();
+	void _getTransactions();
+	void _createTransaction();
+
+	static constexpr std::string_view LOGS_FOLDER = "logs";
 	
 public:
 	static Blockchain& Blockchain::getInstance();
-	void _getTransactions();
-	void _createTransaction();
 
 	void init(const std::array<unsigned char, crypto_generichash_BYTES>& owner);
 	void listTransactions() const;

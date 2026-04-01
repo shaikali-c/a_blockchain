@@ -1,7 +1,10 @@
 #include <blockchain.h>
 
+using namespace drogon;
+using Callback = std::function<void(const HttpResponsePtr&)>;
+
 // TODO: Make the path portable
-Blockchain::Blockchain(): utxoDB("utxo"), transactionDB("transactions"), server(Server::getInstance()) {
+Blockchain::Blockchain(): utxoDB("utxo"), transactionDB("transactions") {
 
 	auto utxoFuture = std::async(std::launch::async, &Blockchain::loadUTXO, this);
 	auto txFuture = std::async(std::launch::async, &Blockchain::loadTransactions, this);
@@ -141,35 +144,78 @@ void Blockchain::listUTXO() const {
 
 void Blockchain::startServer() {
 	setupRoutes();
-	server.start();
+	drogon::app().addListener("0.0.0.0", 8080);
+	std::filesystem::create_directories(LOGS_FOLDER);
+	drogon::app().setLogPath("logs");
+	drogon::app().run();
 }
 
 void Blockchain::setupRoutes() {
+	_getTransaction();
 	_getTransactions();
 	_createTransaction();
 }
 
 void Blockchain::_getTransactions() {
-	Json::Value transacitons_list(Json::arrayValue);
-	for (const auto& pair : transactions) {
+
+	app().registerHandler("/transactions", [this](const HttpRequestPtr& req, Callback&& callback) {
+		Json::Value transacitons_list(Json::arrayValue);
+		for (const auto& pair : transactions) {
+			Json::Value tx;
+			tx["transaction_hash"] = pair.first;
+			tx["sender"] = toHex(pair.second.sender.data(), pair.second.sender.size());
+			tx["receiver"] = toHex(pair.second.receiver.data(), pair.second.receiver.size());
+			tx["amount"] = pair.second.coins;
+			tx["time"] = pair.second.timestamp;
+			transacitons_list.append(tx);
+		}
+		callback(HttpResponse::newHttpJsonResponse(transacitons_list));
+	}, { Get });
+
+}
+
+void Blockchain::_getTransaction() {
+	app().registerHandler("/transaction/{tx_id}", [this](const HttpRequestPtr& req, Callback&& callback, std::string tx_id) {
+		LOG_INFO << "Request Came";
+		auto it = transactions.find(tx_id);
 		Json::Value tx;
-		tx["transaction_hash"] = pair.first;
-		tx["sender"] = toHex(pair.second.sender.data(), pair.second.sender.size());
-		tx["receiver"] = toHex(pair.second.receiver.data(), pair.second.receiver.size());
-		tx["amount"] = pair.second.coins;
-		tx["time"] = pair.second.timestamp;
-		transacitons_list.append(tx);
-	}
-	server.getReq("/transactions", transacitons_list);
+		if (it != transactions.end()) {
+			tx["transaction_hash"] = it->first;
+			tx["sender"] = toHex(it->second.sender.data(), it->second.sender.size());
+			tx["receiver"] = toHex(it->second.receiver.data(), it->second.receiver.size());
+			tx["amount"] = it->second.coins;
+			tx["time"] = it->second.timestamp;
+			callback(HttpResponse::newHttpJsonResponse(tx));
+		}
+		else {
+			tx["error"] = "TRANSACTION_NOT_FOUND";
+			callback(HttpResponse::newHttpJsonResponse(tx));
+		}
+	}, { Get });
 }
 
 void Blockchain::_createTransaction() {
-	server.postReq("/create_transaction",
-		[this](
-			const std::array<unsigned char, crypto_generichash_BYTES>& s,
-			const std::array<unsigned char, crypto_generichash_BYTES>& r,
-			uint64_t amount
-			) {
-				return createTransaction(s, r, amount);
-	});
+	app().registerHandler("/create_transaction", [this](const HttpRequestPtr& req, Callback&& callback) {
+
+		auto &jsonBody = req->getJsonObject();
+		Json::Value response;
+
+		for (const auto& tx : *jsonBody) {
+			if (!tx.isObject()) continue;
+
+			std::string sender_serialize = tx["sender"].asString();
+			std::string receiver_serialize = tx["receiver"].asString();
+			uint64_t amount = tx["amount"].asUInt64();
+
+			std::array<unsigned char, crypto_generichash_BYTES> sender;
+			std::array<unsigned char, crypto_generichash_BYTES> receiver;
+
+			toBytes(sender_serialize, sender.data(), sender.size());
+			toBytes(receiver_serialize, receiver.data(), receiver.size());
+
+			this->createTransaction(sender, receiver, amount);
+		}
+
+		callback(HttpResponse::newHttpJsonResponse(response));
+		}, { Post });
 }

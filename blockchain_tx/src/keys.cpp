@@ -7,6 +7,7 @@ Keys::Keys(const std::string& kName): owner(kName), addr(_hashBytes(_publicKey))
 
 Keys::Keys(): addr(_hashBytes(_publicKey)) {
     createKeys();
+    addr = _hashBytes(_publicKey);
 }
 
 void Keys::setOwner(const std::string& o) {
@@ -18,7 +19,7 @@ const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& Keys::publicKey() c
 }
 
 void Keys::printKeys() const {
-    printKey(_publicKey);
+    printKey(addr);
 }
 
 void Keys::createKeys() {

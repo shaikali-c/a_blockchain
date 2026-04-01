@@ -52,8 +52,9 @@ A from scratch blockchain built in C++ that handles wallets, transactions, and a
 ### Endpoints
 
 ```
-GET  /transactions        — list all transactions
-POST /create_transaction  — create a new transaction
+GET  /transactions						— list all transactions
+GET  /transaction/{transaction_id}      — get a transaction
+POST /create_transaction				— create a new transaction
 ```
 
 ---
@@ -62,6 +63,7 @@ POST /create_transaction  — create a new transaction
 
 - [ ] DB path is hardcoded — needs to be made portable
 - [ ] No block structure yet (it's transaction/UTXO focused right now)
+- [ ] Blockchain export to a transferable file
 - [ ] No P2P networking
 - [ ] Windows-only at the moment (`WIN32_LEAN_AND_MEAN` in pch.h)
 

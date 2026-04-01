@@ -1,6 +1,6 @@
 #include "cryptography.h"
 
-std::string computeMerkleRoot(const std::vector<std::string>& transactions) {
+std::string Cryptography::computeMerkleRoot(const std::vector<std::string>& transactions) {
     if (transactions.empty()) {
         return "";
     }

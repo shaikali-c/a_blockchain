@@ -2,6 +2,7 @@
 
 project(blockchain_tx)
 
+add_definitions(-DWIN32_LEAN_AND_MEAN -D_WINSOCKAPI_)
 find_package(leveldb CONFIG REQUIRED)
 find_package(unofficial-sodium CONFIG REQUIRED)
 find_package(Drogon CONFIG REQUIRED)
@@ -17,7 +18,11 @@ add_executable(blockchain_tx
     "src/common.cpp"
     "src/transaction.cpp"
     "src/blockchain.cpp"
-    "src/pch.cpp" "src/main.cpp" "src/logger.cpp" "src/cryptography.cpp" "src/server.cpp" )
+    "src/pch.cpp"
+    "src/main.cpp"
+    "src/logger.cpp"
+    "src/cryptography.cpp"
+     )
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_precompile_headers(${PROJECT_NAME} PRIVATE include/pch.h)

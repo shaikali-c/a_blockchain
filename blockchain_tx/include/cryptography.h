@@ -1,4 +1,6 @@
 #pragma once
 #include "common.h"
 
-std::string computeMerkleRoot(const std::vector<std::string>& transactions);
+namespace Cryptography {
+	std::string computeMerkleRoot(const std::vector<std::string>& transactions);
+}

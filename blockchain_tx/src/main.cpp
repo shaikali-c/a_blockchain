@@ -1,7 +1,6 @@
 #include "pch.h"
 #include "blockchain.h"
 #include "keys.h"
-#include "common.h"
 #include "databaseManager.h"
 #include "logger.h"
 #include <sodium.h>
@@ -14,21 +13,23 @@ int main()
 	}
 	try {
 		Blockchain& blockchain = Blockchain::getInstance();
+		Logger::log("Blockchain initialized :)");
 		DBManager keysDB{ "./keys" };
-
 
 		//Keys shaik, ali;
 		//keysDB.saveKey("shaik", shaik.serializeKeys());
 		//keysDB.saveKey("ali", ali.serializeKeys());
 
 		Keys shaik{ keysDB.loadKey("shaik") }, ali{ keysDB.loadKey("ali") };
-		Transaction tx{ shaik.addr, ali.addr, 500, {} };
+
+		//Transaction tx{ shaik.addr, ali.addr, 500, {} };
 
 		//blockchain.init(shaik.addr);
-		blockchain.createTransaction(shaik.addr, ali.addr, 1);
+		//blockchain.createTransaction(shaik.addr, ali.addr, 1);
 
-		blockchain.listUTXO();
-		blockchain.listTransactions();
+		//blockchain.listUTXO();
+		//blockchain.listTransactions();
+
 		blockchain.startServer();
 
 	} catch(...) {
