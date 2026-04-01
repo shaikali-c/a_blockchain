@@ -36,6 +36,7 @@ A from scratch blockchain built in C++ that handles wallets, transactions, and a
 ├── keys.cpp            # Key generation, signing, serialization
 ├── common.cpp          # Utility functions (hex, hashing, base64)
 ├── databaseManager.cpp # LevelDB wrapper
+├── cryptography.cpp	# Cryptography functions
 └── logger.cpp          # Simple console logger
 ```
 
