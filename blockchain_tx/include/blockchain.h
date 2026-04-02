@@ -23,19 +23,9 @@ private:
 
 	std::unordered_map<std::string, UTXO> utxo;
 	std::unordered_map<std::string, Transaction> transactions;
-	std::pair<uint64_t, std::vector<std::string>> findUTXO(
-		const std::array<unsigned char, crypto_generichash_BYTES>& owner, uint64_t amount
-	);
 
 	DBManager transactionDB;
 	DBManager utxoDB;
-
-	void setupRoutes();
-	void _getUTXO();
-
-	void _getTransaction();
-	void _getTransactions();
-	void _createTransaction();
 
 	static constexpr std::string_view LOGS_FOLDER = "logs";
 	
@@ -45,12 +35,11 @@ public:
 	void init(const std::array<unsigned char, crypto_generichash_BYTES>& owner);
 	void listTransactions() const;
 	void listUTXO() const;
-	void startServer();
+	void addTransaction(Transaction& tx);
+	
+	bool verifyTX(Transaction& tx, const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey, const std::array<unsigned char, crypto_sign_BYTES>& signature);
+	bool verifySignature(const std::array<unsigned char, crypto_sign_BYTES>& signature, const std::array<unsigned char, crypto_generichash_BYTES>& msg, const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey);
 
-	bool createTransaction(
-		const std::array<unsigned char, crypto_generichash_BYTES>& s,
-		const std::array<unsigned char, crypto_generichash_BYTES>& r,
-		uint64_t coins
-	);
+	std::pair<std::vector<Input>, uint64_t> getUTXO(const std::array<unsigned char, crypto_generichash_BYTES>& addr, uint64_t coins);
 
 };

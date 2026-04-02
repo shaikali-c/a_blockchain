@@ -15,8 +15,6 @@ struct UTXO {
 
     std::string serialize() const;
     void deserialize(const std::string& data);
-    std::string serializeHex() const;
-    void deserializeHex(const std::string& hex);
 };
 
 struct Input {
@@ -34,21 +32,22 @@ struct Input {
 class Transaction {
 public:
     std::vector<Input> inputs;
-    bool is_valid;
     std::vector<UTXO> outputs;
+
     std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> sender;
     std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> receiver;
+    std::array<unsigned char, crypto_generichash_BYTES> transaction_hash_bytes;
+
     std::string transaction_hash, transaction_id;
     uint64_t coins;
     uint64_t timestamp;
 
-    Transaction() : coins(0), timestamp(0), receiver{}, sender{} {}
+    Transaction() : coins(0), timestamp(0), receiver{}, sender{}, isCoinbase(false) {}
     Transaction(const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& s,
         const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& r,
-        uint64_t c, const std::vector<UTXO>& outputs);
+        uint64_t c, const std::vector<Input>& inputs, const std::vector<UTXO>& outputs);
 
     std::string serialize() const;
+    bool isCoinbase;
     void deserialize(const std::string& data);
-    std::string serializeHex() const;
-    void deserializeHex(const std::string& hex);
 };

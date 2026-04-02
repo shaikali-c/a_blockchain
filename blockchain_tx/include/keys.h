@@ -1,8 +1,8 @@
 #pragma once
 #include <pch.h>
 #include <sodium.h>
-#include <databaseManager.h>
 #include <common.h>
+#include "transaction.h"
 
 class Keys {
 private:
@@ -15,14 +15,17 @@ public:
 	Keys();
 
 	void createKeys();
-	void printKeys() const;
 	void setOwner(const std::string&);
+	void deserializeKeys(const std::string&);
 
+	std::string _pHex;
 	std::string owner;
 	std::string serializeKeys() const;
-	void deserializeKeys(const std::string&);
-	std::vector<unsigned char> sign(const std::string& data);
 
 	const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey() const;
+
+	std::pair<Transaction, std::array<unsigned char, crypto_sign_BYTES>> createTransaction(const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& receiver, uint64_t amount, std::vector<Input> utxo_keys, uint64_t);
+
+	std::array<unsigned char, crypto_sign_BYTES> sign(const unsigned char* data, size_t len);
 	std::array<unsigned char, ADDR_SIZE> addr;
 };

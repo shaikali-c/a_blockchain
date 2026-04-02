@@ -16,19 +16,20 @@ int main()
 		Logger::log("Blockchain initialized :)");
 		DBManager keysDB{ "./keys" };
 			
-		Keys shaik, ali;
-		keysDB.saveKey("shaik", shaik.serializeKeys());
-		keysDB.saveKey("ali", ali.serializeKeys());
-
-		//Keys shaik{ keysDB.loadKey("shaik") }, ali{ keysDB.loadKey("ali") };
+		//Keys shaik, ali;
+		//keysDB.saveKey("shaik", shaik.serializeKeys());
+		//keysDB.saveKey("ali", ali.serializeKeys());
+		
+		Keys shaik{ keysDB.loadKey("shaik") }, ali{ keysDB.loadKey("ali") };
 
 		blockchain.init(shaik.addr);
-		blockchain.createTransaction(shaik.addr, ali.addr, 1);
 
-		//blockchain.listUTXO();
-		//blockchain.listTransactions();
+		std::pair<std::vector<Input>, uint64_t> collect = blockchain.getUTXO(shaik.addr, 10);
+		std::pair<Transaction, std::array<unsigned char, crypto_sign_BYTES>> tx_and_signature = shaik.createTransaction(ali.addr, 5000, collect.first, collect.second);
 
-		blockchain.startServer();
+		blockchain.verifyTX(tx_and_signature.first, shaik.publicKey(), tx_and_signature.second);
+		blockchain.listUTXO();
+		blockchain.listTransactions();
 
 	} catch(...) {
 		Logger::error("Blockchain initialization failed :(");

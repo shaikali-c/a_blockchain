@@ -2,39 +2,7 @@
 
 
 std::string Input::getUTXOKey() const {
-    return transaction_hash + std::to_string(output_index);
-}
-
-static std::string fromHex(const std::string& hex) {
-    if (hex.size() % 2 != 0) {
-        throw std::runtime_error("Invalid hex string");
-    }
-
-    std::string result;
-    result.reserve(hex.size() / 2);
-
-    for (size_t i = 0; i < hex.size(); i += 2) {
-        unsigned char byte = 0;
-        for (size_t j = 0; j < 2; ++j) {
-            char c = hex[i + j];
-            byte <<= 4;
-            if (c >= '0' && c <= '9') {
-                byte |= c - '0';
-            }
-            else if (c >= 'a' && c <= 'f') {
-                byte |= c - 'a' + 10;
-            }
-            else if (c >= 'A' && c <= 'F') {
-                byte |= c - 'A' + 10;
-            }
-            else {
-                throw std::runtime_error("Invalid hex character");
-            }
-        }
-        result.push_back(static_cast<char>(byte));
-    }
-
-    return result;
+    return transaction_hash + ":" + std::to_string(output_index);
 }
 
 // UTXO implementation
@@ -64,22 +32,14 @@ void UTXO::deserialize(const std::string& data) {
     std::memcpy(owner.data(), data.data() + offset, owner.size());
 }
 
-std::string UTXO::serializeHex() const {
-    std::string binary = serialize();
-    return toHex(reinterpret_cast<const unsigned char*>(binary.data()), binary.size());
-}
-
-void UTXO::deserializeHex(const std::string& hex) {
-    deserialize(fromHex(hex));
-}
-
 // Transaction implementation
 Transaction::Transaction(
     const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& s,
     const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& r,
     uint64_t c,
+    const std::vector<Input>& i,
     const std::vector<UTXO>& o
-) : sender(s), receiver(r), coins(c), outputs(o), is_valid(true) {
+): sender(s), receiver(r), coins(c), inputs(i), outputs(o), isCoinbase(false) {
 
     timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
         std::chrono::high_resolution_clock::now().time_since_epoch()
@@ -92,6 +52,11 @@ Transaction::Transaction(
 
     crypto_generichash_update(&state, sender.data(), sender.size());
     crypto_generichash_update(&state, receiver.data(), receiver.size());
+
+    for (const auto& in: inputs) {
+        crypto_generichash_update(&state, reinterpret_cast<const unsigned char*>(in.transaction_hash.data()), in.transaction_hash.size());
+        crypto_generichash_update(&state, reinterpret_cast<const unsigned char*>(&in.output_index), sizeof(in.output_index));
+    }
 
     for (const auto& out : outputs) {
         crypto_generichash_update(&state, out.owner.data(), out.owner.size());
@@ -108,6 +73,7 @@ Transaction::Transaction(
     crypto_generichash_final(&state, hash.data(), hash.size());
 
     transaction_hash = toHex(hash.data(), hash.size());
+    transaction_hash_bytes = hash;
 }
 
 std::string Transaction::serialize() const {
@@ -239,6 +205,7 @@ void Transaction::deserialize(const std::string& data) {
             throw std::runtime_error("Invalid transaction data: insufficient data for transaction_hash");
         }
         transaction_hash = std::string(data.data() + offset, hash_size);
+        toBytes(transaction_hash, transaction_hash_bytes.data(), transaction_hash_bytes.size());
         offset += hash_size;
     }
     else {
@@ -300,6 +267,8 @@ void Transaction::deserialize(const std::string& data) {
         inputs.emplace_back(tx_hash, output_index);
     }
 
+    if (inputs.empty()) isCoinbase = true;
+
     // Deserialize outputs
     uint32_t output_count;
     if (offset + sizeof(output_count) > data.size()) {
@@ -327,13 +296,4 @@ void Transaction::deserialize(const std::string& data) {
 
         outputs.emplace_back(output_data);
     }
-}
-
-std::string Transaction::serializeHex() const {
-    std::string binary = serialize();
-    return toHex(reinterpret_cast<const unsigned char*>(binary.data()), binary.size());
-}
-
-void Transaction::deserializeHex(const std::string& hex) {
-    deserialize(fromHex(hex));
 }
