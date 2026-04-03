@@ -74,7 +74,11 @@ void Blockchain::loadTransactions() {
 	}
 }
 
-bool Blockchain::verifySignature(const std::array<unsigned char, crypto_sign_BYTES>& signature, const std::array<unsigned char, crypto_generichash_BYTES>& msg, const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey) {
+bool Blockchain::verifySignature(
+	const std::array<unsigned char, crypto_sign_BYTES>& signature,
+	const std::array<unsigned char, crypto_generichash_BYTES>& msg,
+	const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey
+) {
 	if (crypto_sign_verify_detached(signature.data(), reinterpret_cast<const unsigned char*>(msg.data()), msg.size(), publicKey.data()) != 0) {
 		Logger::reject("SIGNATURE FAILED");
 		return false;
@@ -82,7 +86,11 @@ bool Blockchain::verifySignature(const std::array<unsigned char, crypto_sign_BYT
 	return true;
 }
 
-bool Blockchain::verifyTX(Transaction& tx, const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey, const std::array<unsigned char, crypto_sign_BYTES>& signature) {
+bool Blockchain::verifyTX(
+	Transaction& tx,
+	const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey,
+	const std::array<unsigned char, crypto_sign_BYTES>& signature
+) {
 
 	if (tx.isCoinbase) {
 		return true;
@@ -144,4 +152,98 @@ void Blockchain::listUTXO() const {
 		utxo_table.add_row({ utxo_key, toHex(out.owner.data(), out.owner.size()), std::to_string(out.coins)});
 	}
 	std::cout << utxo_table << "\n";
+}
+
+void Blockchain::getUTXOAPI() {
+	app().registerHandler("/utxo",[this](const HttpRequestPtr& req, Callback&& callback) {
+
+		auto json = req->getJsonObject();
+		Json::Value root;
+		if (!json) {
+			root["error"] = "INVALID_JSON";
+		}
+		else {
+			Json::Value utxos(Json::arrayValue);
+			uint64_t total = 0;	
+
+			std::string addr_hex = (*json)["addr"].asString();
+			uint64_t amount = (*json)["amount"].asInt64();
+
+			std::array<unsigned char, crypto_generichash_BYTES> addr;
+			toBytes(addr_hex, addr.data(), addr.size());
+
+			for (const auto& [utxo_key, out] : utxo) {
+				Json::Value utxo_;
+				if (out.owner == addr) {
+					utxo_["utxo_key"] = utxo_key;
+					total += out.coins;
+					utxos.append(utxo_);
+					if (total >= amount) break;
+				}
+			
+			}
+			if (total < amount) {
+				root["error"] = "NOT_ENOUGH_COINS";
+			} else {
+				root["utxos"] = utxos;
+			}
+		}
+		auto response = HttpResponse::newHttpJsonResponse(root);
+		callback(response);
+		}, { Post });
+}
+
+void Blockchain::getTransactionsAPI() {
+	app().registerHandler("/transactions", [this](const HttpRequestPtr& req, Callback&& callback) {
+		Json::Value root;
+		if (transactions.empty()) {
+			root["error"] = "NO_TRANSACTIONS";
+		} else {
+			Json::Value transactionsJson(Json::arrayValue);
+			for (const auto& [tx_hash, tx] : transactions) {
+				Json::Value transactionJson;
+				transactionJson["transaction_hash"] = tx_hash;
+				transactionJson["sender"] = toHex(tx.sender.data(), tx.sender.size());
+				transactionJson["receiver"] = toHex(tx.receiver.data(), tx.receiver.size());
+				transactionJson["amount"] = tx.coins;
+				transactionJson["timestamp"] = tx.timestamp;
+				transactionsJson.append(transactionJson);
+			}
+			root["transactions"] = transactionsJson;
+		}
+		auto response = HttpResponse::newHttpJsonResponse(root);
+		callback(response);
+		}, { Get });
+}
+
+void Blockchain::getTransactionAPI() {
+	app().registerHandler("/transactions/{tx_hash}", [this](const HttpRequestPtr& req, Callback&& callback, const std::string& tx_hash) {
+		auto it = transactions.find(tx_hash);
+		Json::Value root;
+		if (it != transactions.end()) {
+			Json::Value transactionJson;
+			transactionJson["transaction_hash"] = it->first;
+			transactionJson["sender"] = toHex(it->second.sender.data(), it->second.sender.size());
+			transactionJson["receiver"] = toHex(it->second.receiver.data(), it->second.receiver.size());
+			transactionJson["amount"] = it->second.coins;
+			transactionJson["timestamp"] = it->second.timestamp;
+			root["transaction"] = transactionJson;
+		} else {
+			root["error"] = "TRANSACTION_NOT_FOUND";
+		}
+		auto response = HttpResponse::newHttpJsonResponse(root);
+		callback(response);
+		}, { Get });
+}
+
+void Blockchain::setupRoutes() {
+	getTransactionAPI();
+	getTransactionsAPI();
+	getUTXOAPI();
+}
+
+void Blockchain::startServer() {
+	setupRoutes();
+	app().addListener("0.0.0.0", 8080);
+	app().run();
 }

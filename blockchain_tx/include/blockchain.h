@@ -21,6 +21,11 @@ private:
 	void loadUTXO();
 	void loadTransactions();
 
+	void getTransactionAPI();
+	void getTransactionsAPI();
+	void getUTXOAPI();
+	void setupRoutes();
+
 	std::unordered_map<std::string, UTXO> utxo;
 	std::unordered_map<std::string, Transaction> transactions;
 
@@ -32,6 +37,7 @@ private:
 public:
 	static Blockchain& getInstance();
 
+	void startServer();
 	void init(const std::array<unsigned char, crypto_generichash_BYTES>& owner);
 	void listTransactions() const;
 	void listUTXO() const;

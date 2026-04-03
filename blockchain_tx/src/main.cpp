@@ -19,17 +19,19 @@ int main()
 		//Keys shaik, ali;
 		//keysDB.saveKey("shaik", shaik.serializeKeys());
 		//keysDB.saveKey("ali", ali.serializeKeys());
+		//blockchain.init(shaik.addr);
 		
 		Keys shaik{ keysDB.loadKey("shaik") }, ali{ keysDB.loadKey("ali") };
 
-		blockchain.init(shaik.addr);
+		uint64_t amount = 5000;
 
-		std::pair<std::vector<Input>, uint64_t> collect = blockchain.getUTXO(shaik.addr, 10);
-		std::pair<Transaction, std::array<unsigned char, crypto_sign_BYTES>> tx_and_signature = shaik.createTransaction(ali.addr, 5000, collect.first, collect.second);
+		//std::pair<std::vector<Input>, uint64_t> collect = blockchain.getUTXO(shaik.addr, amount);
+		//std::pair<Transaction, std::array<unsigned char, crypto_sign_BYTES>> tx_and_signature = shaik.createTransaction(ali.addr, amount, collect.first, collect.second);
 
-		blockchain.verifyTX(tx_and_signature.first, shaik.publicKey(), tx_and_signature.second);
+		//blockchain.verifyTX(tx_and_signature.first, shaik.publicKey(), tx_and_signature.second);
 		blockchain.listUTXO();
 		blockchain.listTransactions();
+		blockchain.startServer();
 
 	} catch(...) {
 		Logger::error("Blockchain initialization failed :(");
