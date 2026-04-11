@@ -1,27 +1,27 @@
 #include "cryptography.h"
 
-std::string Cryptography::computeMerkleRoot(const std::vector<std::string>& transactions) {
+TransactionHash Cryptography::computeMerkleRoot(const std::vector<TransactionHash>& transactions) {
     if (transactions.empty()) {
-        return "";
+        return {};
     }
 
-    std::vector<std::string> currentLevel;
+    std::vector<TransactionHash> currentLevel;
     for (const auto& tx : transactions) {
-        auto hash = _hashStr(tx);
-        currentLevel.push_back(hash);
+        currentLevel.push_back(tx);
     }
 
     while (currentLevel.size() > 1) {
-        std::vector<std::string> nextLevel;
+        std::vector<TransactionHash> nextLevel;
 
         for (size_t i = 0; i < currentLevel.size(); i += 2) {
-            if (i + 1 < currentLevel.size()) {
-                std::string combined = currentLevel[i] + currentLevel[i + 1];
-                nextLevel.push_back(_hashStr(combined));
-            }
-            else {
-                nextLevel.push_back(_hashStr(currentLevel[i] + currentLevel[i]));
-            }
+            const auto& left = currentLevel[i];
+            const auto& right = (i + 1 < currentLevel.size()) ? currentLevel[i + 1] : currentLevel[i];
+
+            std::array<unsigned char, TransactionHashSize * 2> combined{};
+            std::copy(left.begin(), left.end(), combined.begin());
+            std::copy(right.begin(), right.end(), combined.begin() + TransactionHashSize);
+
+            nextLevel.emplace_back(Common::hashBytes(combined));
         }
 
         currentLevel = std::move(nextLevel);

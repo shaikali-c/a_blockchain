@@ -5,27 +5,14 @@
 
 struct UTXO {
     uint64_t coins;
-    std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> owner;
-
-    UTXO() : coins(0), owner{} {}
-    UTXO(const std::string& data);
-    UTXO(uint64_t c, const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& o)
-        : coins(c), owner(o) {
-    }
-
-    std::string serialize() const;
-    void deserialize(const std::string& data);
+    Addr owner;
+    UTXO(const Addr& addr, uint64_t c) : coins(c), owner(addr) {}
 };
 
 struct Input {
     std::string transaction_hash;
     uint32_t output_index;
-
-    Input() : output_index(0) {}
-    Input(const std::string& tx_hash, uint32_t oi)
-        : transaction_hash(tx_hash), output_index(oi) {
-    }
-
+    Input(const std::string& tx_hash, uint32_t oi) : transaction_hash(tx_hash), output_index(oi) {}
     std::string getUTXOKey() const;
 };
 
@@ -34,20 +21,26 @@ public:
     std::vector<Input> inputs;
     std::vector<UTXO> outputs;
 
-    std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> sender;
-    std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> receiver;
-    std::array<unsigned char, crypto_generichash_BYTES> transaction_hash_bytes;
+    Addr sender;
+    Addr receiver;
+    Hash transaction_hash;
 
-    std::string transaction_hash, transaction_id;
     uint64_t coins;
     uint64_t timestamp;
 
-    Transaction() : coins(0), timestamp(0), receiver{}, sender{}, isCoinbase(false) {}
-    Transaction(const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& s,
-        const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& r,
-        uint64_t c, const std::vector<Input>& inputs, const std::vector<UTXO>& outputs);
+    Transaction(
+        const Addr& s,
+        const Addr& r,
+        uint64_t c,
+        std::vector<Input> inputs,
+        std::vector<UTXO> outputs
+    );
 
-    std::string serialize() const;
     bool isCoinbase;
-    void deserialize(const std::string& data);
+};
+
+struct SignedTransaction {
+    Transaction transaction;
+    PublicKey publicKey;
+    std::array<unsigned char, crypto_sign_BYTES> signature;
 };

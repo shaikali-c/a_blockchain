@@ -2,5 +2,5 @@
 #include "common.h"
 
 namespace Cryptography {
-	std::string computeMerkleRoot(const std::vector<std::string>& transactions);
+	TransactionHash computeMerkleRoot(const std::vector<TransactionHash>& transactions);
 }

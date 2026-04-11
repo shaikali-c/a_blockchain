@@ -1,31 +1,27 @@
 #pragma once
-#include <pch.h>
-#include <sodium.h>
-#include <common.h>
+
+#include "pch.h"
 #include "transaction.h"
+#include "common.h"
 
-class Keys {
+class KeysManager {
 private:
-	std::array<unsigned char, crypto_sign_PUBLICKEYBYTES> _publicKey;
-	std::array<unsigned char, crypto_sign_SECRETKEYBYTES> _secretKey;
-	static constexpr size_t ADDR_SIZE = crypto_generichash_BYTES;
-
+	SecretKey  secretKey;
+	PublicKey  publicKey;
+	Addr address;
 public:
-	Keys(const std::string& kName);
-	Keys();
+	KeysManager();
+	KeysManager(const std::string&);
+	~KeysManager() {
+		sodium_memzero(secretKey.data(), secretKey.size());
+		sodium_memzero(publicKey.data(), publicKey.size());
+		sodium_memzero(address.data(), address.size());
+	}
 
-	void createKeys();
-	void setOwner(const std::string&);
-	void deserializeKeys(const std::string&);
-
-	std::string _pHex;
-	std::string owner;
 	std::string serializeKeys() const;
-
-	const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey() const;
-
-	std::pair<Transaction, std::array<unsigned char, crypto_sign_BYTES>> createTransaction(const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& receiver, uint64_t amount, std::vector<Input> utxo_keys, uint64_t);
-
-	std::array<unsigned char, crypto_sign_BYTES> sign(const unsigned char* data, size_t len);
-	std::array<unsigned char, ADDR_SIZE> addr;
+	Signature signTransaction(const TransactionHash&) const;
+	void computeAddr();
+	SignedTransaction createTransaction(std::vector<Input> inputs, uint64_t collectedCoins, const Addr& receiver, uint64_t amount) const;
+	bool deserializeKeys(const std::string& serializedKeys);
+	const Addr& getAddress() const;
 };

@@ -25,3 +25,4 @@
 #include <leveldb/db.h>
 #include <tabulate.hpp>
 #include <drogon/drogon.h>
+#include <sodium.h>

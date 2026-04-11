@@ -5,47 +5,46 @@
 #include "databaseManager.h"
 #include "common.h"
 #include "logger.h"
-#include <future>
+#include "block.h"
 #include <sodium.h>
+
+struct UTXOResult {
+	std::vector<Input> inputs;
+	uint64_t total = 0;
+};
 
 class Blockchain {
 private:
-
-	static constexpr size_t PUBLIC_KEY_BYTES = crypto_sign_PUBLICKEYBYTES;
 
 	Blockchain();
 	Blockchain(const Blockchain&) = delete;
 	Blockchain& operator=(const Blockchain&) = delete;
 
-	void saveUTXO();
-	void loadUTXO();
-	void loadTransactions();
-
-	void getTransactionAPI();
-	void getTransactionsAPI();
-	void getUTXOAPI();
-	void setupRoutes();
-
 	std::unordered_map<std::string, UTXO> utxo;
 	std::unordered_map<std::string, Transaction> transactions;
+	std::vector<Block> blocks;
+	std::vector<Transaction> transactionsPool;
 
 	DBManager transactionDB;
 	DBManager utxoDB;
 
 	static constexpr std::string_view LOGS_FOLDER = "logs";
+	void updateUTXO(const Transaction& transaction);
+	bool verifySignature(const SignedTransaction& st);
+	bool verifyTransaction(const Transaction& transaction);
 	
 public:
 	static Blockchain& getInstance();
 
-	void startServer();
-	void init(const std::array<unsigned char, crypto_generichash_BYTES>& owner);
+	void addTransaction(const SignedTransaction& signedTransaction);
 	void listTransactions() const;
 	void listUTXO() const;
 	void addTransaction(Transaction& tx);
-	
-	bool verifyTX(Transaction& tx, const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey, const std::array<unsigned char, crypto_sign_BYTES>& signature);
-	bool verifySignature(const std::array<unsigned char, crypto_sign_BYTES>& signature, const std::array<unsigned char, crypto_generichash_BYTES>& msg, const std::array<unsigned char, crypto_sign_PUBLICKEYBYTES>& publicKey);
+	void spareCoins(const Addr& owner);
 
-	std::pair<std::vector<Input>, uint64_t> getUTXO(const std::array<unsigned char, crypto_generichash_BYTES>& addr, uint64_t coins);
+	Hash getCurrentBlockHash() const;
+	const std::vector<Transaction>& getTXPool() const;
+	
+	UTXOResult getUTXO(const Addr& addr, uint64_t coins);
 
 };
