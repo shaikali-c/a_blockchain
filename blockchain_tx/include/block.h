@@ -2,12 +2,17 @@
 #include "transaction.h"
 #include "common.h"
 
-class Block {
-public:
-	Hash block_hash;
+struct BlockHeader {
 	Hash previous_hash;
+	Hash hash;
+	Hash merkleRoot;
 	uint64_t nonce;
 	uint64_t timestamp;
+};
+
+class Block {
+public:
+	BlockHeader blockHeader;
 	std::vector<Transaction> transactions;
 	Block(
 		const Hash& bh,
@@ -15,5 +20,6 @@ public:
 		uint64_t n,
 		uint64_t t,
 		const std::vector<Transaction>& txs
-	) : block_hash(bh), previous_hash(ph), nonce(n), timestamp(t), transactions(txs){}
+	) : blockHeader{ph, bh, bh, n, t}, transactions(txs) {
+}
 };

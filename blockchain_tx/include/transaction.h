@@ -3,23 +3,57 @@
 #include <sodium.h>
 #include <common.h>
 
+struct Reader {
+    const std::string& buffer;
+    size_t offset = 0;
+
+    Reader(const std::string& buf) : buffer(buf) {}
+
+    template<typename T>
+    T read() {
+        T value;
+        std::memcpy(&value, buffer.data() + offset, sizeof(T));
+        offset += sizeof(T);
+        return value;
+    }
+
+    void readBytes(char* dest, size_t size) {
+        std::memcpy(dest, buffer.data() + offset, size);
+        offset += size;
+    }
+
+    std::string readString(size_t size) {
+        std::string s(buffer.data() + offset, size);
+        offset += size;
+        return s;
+    }
+};
+
 struct UTXO {
-    uint64_t coins;
     Addr owner;
-    UTXO(const Addr& addr, uint64_t c) : coins(c), owner(addr) {}
+    uint64_t coins;
+    UTXO(const Addr& addr, uint64_t c) : owner(addr), coins(c) {}
+    std::string serialize() const;
 };
 
 struct Input {
-    std::string transaction_hash;
+    TransactionHash transaction_hash;
     uint32_t output_index;
-    Input(const std::string& tx_hash, uint32_t oi) : transaction_hash(tx_hash), output_index(oi) {}
+    Input(const TransactionHash tx_hash, uint32_t oi) : transaction_hash(tx_hash), output_index(oi) {}
+    Input() = default;
     std::string getUTXOKey() const;
+    std::string serialize() const;
 };
 
 class Transaction {
+private:
+    void computeTransactionHash();
+    void computeTransactionHash(uint64_t);
 public:
     std::vector<Input> inputs;
     std::vector<UTXO> outputs;
+
+    bool isCoinbase;
 
     Addr sender;
     Addr receiver;
@@ -35,8 +69,11 @@ public:
         std::vector<Input> inputs,
         std::vector<UTXO> outputs
     );
+    Transaction(const std::string& rawBytes);
 
-    bool isCoinbase;
+    std::string serializeTransaction() const;
+    void deserializeTransaction(const std::string&);
+
 };
 
 struct SignedTransaction {

@@ -3,16 +3,36 @@
 using namespace drogon;
 
 // TODO: Make the path portable
-Blockchain::Blockchain(): utxoDB("utxo"), transactionDB("transactions") {}
+Blockchain::Blockchain() : utxoDB("utxo"), transactionDB("transactions"), height{ 0 } {
+	loadTransactions();
+	LOG_INFO << "Transactions loaded";
+}
 
 Blockchain& Blockchain::getInstance() {
 	static Blockchain blockchainInstance;
 	return blockchainInstance;
 }
 
+void Blockchain::loadTransactions() {
+	leveldb::Iterator* it = transactionDB.db->NewIterator(leveldb::ReadOptions());
+	for (it->SeekToFirst(); it->Valid(); it->Next()) {
+		std::string value = it->value().ToString();
+		Transaction transaction{ value };
+		transactions.emplace(Common::toHex(transaction.transaction_hash), transaction);
+	}
+
+	if (!it->status().ok()) {
+		std::cerr << "Iterator error: " << it->status().ToString() << std::endl;
+	}
+
+	for (const auto& [txid, tx] : transactions) {
+		updateUTXO(tx);
+	}
+}
+
 void Blockchain::spareCoins(const Addr& owner) {
-	Input input{ "9f86d081884c7d659a2feaa0c55ad015a3bf4f1b2b0b822cd15d6c15b0f00a08", 1 };
-	utxo.emplace(input.getUTXOKey(), UTXO{ owner, 10 });
+	Input input{ Common::hashBytes(owner), 1 };
+	utxo.emplace(input.getUTXOKey(), UTXO{ owner, 1000 });
 }
 
 UTXOResult Blockchain::getUTXO(const Addr& addr, uint64_t coins) {
@@ -20,7 +40,8 @@ UTXOResult Blockchain::getUTXO(const Addr& addr, uint64_t coins) {
 	for (const auto& [txid, out] : utxo) {
 		if (out.owner == addr) {
 			result.total += out.coins;
-			std::string tx_hash{txid.data(), TransactionHashSize * 2};
+			std::string tx_hash_hex{txid.data(), TransactionHashSize * 2};
+			TransactionHash tx_hash = Common::toBytes<TransactionHashSize>(tx_hash_hex);
 			uint32_t output_index = static_cast<uint32_t>(std::stoul(txid.data() + (TransactionHashSize * 2) + 1));
 			result.inputs.emplace_back(tx_hash, output_index);
 			if (result.total >= coins) break;
@@ -33,6 +54,14 @@ bool Blockchain::verifySignature(const SignedTransaction& st) {
 	if (crypto_sign_verify_detached(st.signature.data(), st.transaction.transaction_hash.data(), st.transaction.transaction_hash.size(), st.publicKey.data()) != 0) {
 		LOG_ERROR << "SIGNATURE VERIFICATION FAILED";
 		return false;
+	}
+	Addr address = Common::computeAddress(st.publicKey);
+	for (const auto& in : st.transaction.inputs) {
+		const auto it = utxo.find(in.getUTXOKey());
+		if (it->second.owner != address) {
+			LOG_ERROR << "NOT YOUR INPUTS";
+			return false;
+		}
 	}
 	return true;
 }
@@ -70,13 +99,15 @@ void Blockchain::updateUTXO(const Transaction& transaction) {
 void Blockchain::addTransaction(const SignedTransaction& signedTransaction) {
 	if (!verifyTransaction(signedTransaction.transaction)) return;
 	if (!verifySignature(signedTransaction)) return;
+
 	transactions.emplace(Common::toHex(signedTransaction.transaction.transaction_hash), signedTransaction.transaction);
 	updateUTXO(signedTransaction.transaction);
+	transactionDB.saveKey(Common::toHex(signedTransaction.transaction.transaction_hash), signedTransaction.transaction.serializeTransaction());
 	LOG_INFO << "TRANSACTION CREATED";
 }
 
 Hash Blockchain::getCurrentBlockHash() const {
-	return blocks.back().block_hash;
+	return blocks.back().blockHeader.hash;
 }
 
 const std::vector<Transaction>& Blockchain::getTXPool() const {
@@ -98,5 +129,5 @@ void Blockchain::listUTXO() const {
 	for (const auto& [utxo_key, out] : utxo) {
 		utxo_table.add_row({ utxo_key, Common::toHex(out.owner), std::to_string(out.coins)});
 	}
-	std::cout << utxo_table << "\n";
+	std::cout << utxo_table << "\n";45
 }

@@ -26,3 +26,4 @@
 #include <tabulate.hpp>
 #include <drogon/drogon.h>
 #include <sodium.h>
+#include <nlohmann/json.hpp>

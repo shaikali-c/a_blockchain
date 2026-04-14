@@ -12,6 +12,7 @@ using Callback = std::function<void(const drogon::HttpResponsePtr&)>;
 
 
 constexpr size_t TransactionHashSize = crypto_generichash_BYTES;
+constexpr size_t TransactionHashHexSize = crypto_generichash_BYTES * 2;
 
 namespace Common {
 	template <std::size_t N>
@@ -43,6 +44,7 @@ namespace Common {
             &bin_len,
             nullptr
         );
+        return bytes;
     }
     template <std::size_t N>
     Hash hashBytes(const std::array<unsigned char, N>& bytes) {
@@ -50,5 +52,7 @@ namespace Common {
         crypto_generichash(hash.data(), hash.size(), bytes.data(), bytes.size(), nullptr, 0);
         return hash;
     }
+    Addr computeAddress(const PublicKey& pk);
+    void appendBytes(std::string& buffer, const void* data, size_t size);
 
 }

@@ -1,4 +1,4 @@
-﻿{
+{
   "version": 3,
   "configurePresets": [
     {
@@ -70,6 +70,14 @@
       "cacheVariables": {
         "CMAKE_BUILD_TYPE": "Debug"
       }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "buildPresets",
+      "displayName": "Custom Build Preset",
+      "description": "Custom build preset description",
+      "configurePreset": "x64-debug"
     }
   ]
 }

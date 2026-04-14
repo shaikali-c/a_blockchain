@@ -6,6 +6,7 @@ add_definitions(-DWIN32_LEAN_AND_MEAN -D_WINSOCKAPI_)
 find_package(leveldb CONFIG REQUIRED)
 find_package(unofficial-sodium CONFIG REQUIRED)
 find_package(Drogon CONFIG REQUIRED)
+find_package(nlohmann_json CONFIG REQUIRED)
 
 set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -27,4 +28,4 @@ add_executable(blockchain_tx
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_precompile_headers(${PROJECT_NAME} PRIVATE include/pch.h)
-target_link_libraries(blockchain_tx PRIVATE leveldb::leveldb unofficial-sodium::sodium Drogon::Drogon)
+target_link_libraries(blockchain_tx PRIVATE leveldb::leveldb unofficial-sodium::sodium Drogon::Drogon nlohmann_json::nlohmann_json)

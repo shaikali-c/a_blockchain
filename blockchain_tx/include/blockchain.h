@@ -23,6 +23,7 @@ private:
 	std::unordered_map<std::string, UTXO> utxo;
 	std::unordered_map<std::string, Transaction> transactions;
 	std::vector<Block> blocks;
+	uint64_t height;
 	std::vector<Transaction> transactionsPool;
 
 	DBManager transactionDB;
@@ -32,6 +33,7 @@ private:
 	void updateUTXO(const Transaction& transaction);
 	bool verifySignature(const SignedTransaction& st);
 	bool verifyTransaction(const Transaction& transaction);
+	void loadTransactions();
 	
 public:
 	static Blockchain& getInstance();

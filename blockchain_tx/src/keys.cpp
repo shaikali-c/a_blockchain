@@ -7,6 +7,7 @@ KeysManager::KeysManager() {
 
 KeysManager::KeysManager(const std::string& serializedKeys) {
 	deserializeKeys(serializedKeys);
+	computeAddr();
 }
 
 std::string KeysManager::serializeKeys() const {
