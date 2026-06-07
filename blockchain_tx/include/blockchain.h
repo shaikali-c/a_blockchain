@@ -28,19 +28,24 @@ private:
 
 	DBManager transactionDB;
 	DBManager utxoDB;
+	DBManager blocksDB;
 
 	static constexpr std::string_view LOGS_FOLDER = "logs";
 	void updateUTXO(const Transaction& transaction);
 	bool verifySignature(const SignedTransaction& st);
 	bool verifyTransaction(const Transaction& transaction);
 	void loadTransactions();
+	void loadBlocks();
+	void createGenesisBlock();
+	std::string serializeBlock(const Block& block);
+	Block deserializeBlock(const std::string&);
 	
 public:
 	static Blockchain& getInstance();
-
 	void addTransaction(const SignedTransaction& signedTransaction);
 	void listTransactions() const;
 	void listUTXO() const;
+	void listBlocks();
 	void addTransaction(Transaction& tx);
 	void spareCoins(const Addr& owner);
 

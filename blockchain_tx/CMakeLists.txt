@@ -24,7 +24,7 @@ add_executable(blockchain_tx
     "src/logger.cpp"
     "src/cryptography.cpp"
     "src/block.cpp"
-)
+ "include/miner.h")
 
 target_include_directories(${PROJECT_NAME} PRIVATE include)
 target_precompile_headers(${PROJECT_NAME} PRIVATE include/pch.h)

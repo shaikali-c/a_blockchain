@@ -23,7 +23,6 @@ Transaction::Transaction(const std::string& rawBytes) {
     deserializeTransaction(rawBytes);
 }
 
-
 Transaction::Transaction(
     const Addr& s,
     const Addr& r,
@@ -36,9 +35,9 @@ Transaction::Transaction(
 
 void Transaction::computeTransactionHash() {
     timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
-        std::chrono::high_resolution_clock::now().time_since_epoch()
+        std::chrono::system_clock::now().time_since_epoch()
     ).count();
-
+    std::cout << "Timestamp tx: " << timestamp << "\n";
     Hash hash{};
 
     crypto_generichash_state state;

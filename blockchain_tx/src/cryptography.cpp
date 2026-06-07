@@ -1,6 +1,6 @@
 #include "cryptography.h"
 
-TransactionHash Cryptography::computeMerkleRoot(const std::vector<TransactionHash>& transactions) {
+Hash Cryptography::computeMerkleRoot(const std::vector<TransactionHash>& transactions) {
     if (transactions.empty()) {
         return {};
     }
