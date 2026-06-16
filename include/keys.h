@@ -19,7 +19,7 @@ public:
 	}
 
 	std::string serializeKeys() const;
-	Signature signTransaction(const TransactionHash&) const;
+	Signature signTransaction(const Hash&) const;
 	void computeAddr();
 	SignedTransaction createTransaction(std::vector<Input> inputs, uint64_t collectedCoins, const Addr& receiver, uint64_t amount) const;
 	bool deserializeKeys(const std::string& serializedKeys);

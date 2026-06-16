@@ -31,7 +31,7 @@ void KeysManager::computeAddr() {
 	crypto_generichash(address.data(), address.size(), publicKey.data(), publicKey.size(), nullptr, 0);
 }
 
-Signature KeysManager::signTransaction(const TransactionHash& txHash) const {
+Signature KeysManager::signTransaction(const Hash& txHash) const {
 	Signature signature{};
 	crypto_sign_detached(signature.data(), nullptr, txHash.data(), txHash.size(), secretKey.data());
 	return signature;

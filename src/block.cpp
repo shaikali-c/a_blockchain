@@ -7,7 +7,7 @@ Block::Block(
 	uint64_t n,
 	const std::vector<Transaction>& txs
 ) : blockHeader{ ph, bh, t, n }, transactions(txs) {
-	std::vector<TransactionHash> tx_hashes;
+	std::vector<Hash> tx_hashes;
 	for (const auto t : txs)
 		tx_hashes.push_back(t.transaction_hash);
 	blockHeader.merkleRoot = Cryptography::computeMerkleRoot(tx_hashes);

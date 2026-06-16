@@ -37,9 +37,10 @@ struct UTXO {
 };
 
 struct Input {
-    TransactionHash transaction_hash;
-    uint32_t output_index;
-    Input(const TransactionHash tx_hash, uint32_t oi) : transaction_hash(tx_hash), output_index(oi) {}
+    Hash transaction_hash{};
+    uint32_t output_index{};
+    Input(const Hash tx_hash, uint32_t oi) : transaction_hash(tx_hash), output_index(oi) {}
+    Input(const std::string&);
     Input() = default;
     std::string getUTXOKey() const;
     std::string serialize() const;
@@ -52,8 +53,6 @@ private:
 public:
     std::vector<Input> inputs;
     std::vector<UTXO> outputs;
-
-    bool isCoinbase;
 
     Addr sender;
     Addr receiver;
@@ -69,6 +68,15 @@ public:
         std::vector<Input> inputs,
         std::vector<UTXO> outputs
     );
+    Transaction(const Addr& miner, uint64_t c, std::vector<UTXO> outputs);
+    Transaction(
+        const Addr& s,
+        const Addr& r,
+        uint64_t c,
+        std::vector<Input> inputs,
+        std::vector<UTXO> outputs,
+        uint64_t
+    );
     Transaction(const std::string& rawBytes);
 
     std::string serializeTransaction() const;
@@ -79,5 +87,5 @@ public:
 struct SignedTransaction {
     Transaction transaction;
     PublicKey publicKey;
-    std::array<unsigned char, crypto_sign_BYTES> signature;
+    Signature signature;
 };

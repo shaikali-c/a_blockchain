@@ -17,7 +17,7 @@ struct Miner {
 		timestamp = std::chrono::duration_cast<std::chrono::nanoseconds>(
 			std::chrono::system_clock::now().time_since_epoch()
 		).count();
-		std::vector<TransactionHash> txHashes;
+		std::vector<Hash> txHashes;
 		for (const auto& t : transactions)
 			txHashes.push_back(t.transaction_hash);
 		merkleRoot = Cryptography::computeMerkleRoot(txHashes);

@@ -1,6 +1,10 @@
 // pch.h
 #pragma once
 
+#define WIN32_LEAN_AND_MEAN
+#include <winsock2.h>
+#include <ws2tcpip.h>
+
 // ------------------------------
 // C++ Standard Library
 // ------------------------------
@@ -17,6 +21,7 @@
 #include <filesystem>
 #include <unordered_map>
 #include <utility>
+#include <string_view>
 #include <vector>
 
 // ------------------------------
@@ -24,6 +29,6 @@
 // ------------------------------
 #include <leveldb/db.h>
 #include <tabulate.hpp>
-#include <drogon/drogon.h>
 #include <sodium.h>
 #include <nlohmann/json.hpp>
+#include <crow.h>
