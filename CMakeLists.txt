@@ -14,7 +14,7 @@ find_package(nlohmann_json CONFIG REQUIRED)
 
 add_executable(blockchain_tx
     "src/databaseManager.cpp"
-    "src/keys.cpp"
+    
     "src/common.cpp"
     "src/transaction.cpp"
     "src/blockchain.cpp"

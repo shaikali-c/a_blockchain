@@ -1,7 +1,5 @@
 #include "pch.h"
 #include "blockchain.h"
-#include "keys.h"
-#include "miner.h"
 #include "databaseManager.h"
 #include "logger.h"
 #include <sodium.h>
@@ -9,15 +7,14 @@
 int main()
 {
 	if (sodium_init() < 0) {
-		Logger::reject("Library initilization failed :(");
+		Logger::error("Library initilization failed :(");
 	}
 	try {
 		Blockchain& blockchain = Blockchain::getInstance();
-		Logger::log("Blockchain initialized :)");
-		blockchain.listUTXO();
-		blockchain.listBlocks();
-		blockchain.listPoolTransactions();
 		blockchain.listTransactions();
+		blockchain.listUTXO();
+		blockchain.listPoolTransactions();
+		blockchain.listBlocks();
 		blockchain.startServer();
 	} catch(...) {
 		Logger::error("Blockchain initialization failed :(");

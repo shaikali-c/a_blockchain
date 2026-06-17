@@ -137,8 +137,7 @@ void Transaction::computeTransactionHash(uint64_t t) {
 
     std::memcpy(bytes.data() + offset, &coins, sizeof(coins));
     offset += sizeof(coins);
-    std::memcpy(bytes.data() + offset, &timestamp, sizeof(timestamp));;
-
+    std::memcpy(bytes.data() + offset, &timestamp, sizeof(timestamp));
     transaction_hash = Common::hashBytesVector(bytes);
 }
 
