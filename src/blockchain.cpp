@@ -86,6 +86,8 @@
 			std::string value = it->value().ToString();
 			Transaction tx{value};
 			transactionsPool.emplace(key, tx);
+			for (const auto& i : tx.inputs)
+				mempoolInputs[i.getUTXOKey()] = i;
 		}
 		Logger::log("POOL LOADED");
 	}
@@ -161,6 +163,7 @@
 			}
 			std::cout << transactions_table << "\n";
 		}
+
 	}
 
 	void Blockchain::listBlocks() {
@@ -294,7 +297,14 @@
 		std::vector<Input> inputs;
 		std::vector<UTXO> outputs;
 
-		for (const auto& i : json["inputs"]) inputs.emplace_back(i);
+		for (const auto& i : json["inputs"]) {
+			if (utxo.find(i) == utxo.end()) {
+				errorJson["error"] = "Invalid inputs";
+				res.body = errorJson.dump();
+				return res;
+			}
+			inputs.emplace_back(i);
+		}
 		for (const auto& o : json["outputs"]) {
 			Addr addr = Common::toBytes < Addr{}.size() > (o["address"].get<std::string>());
 			uint64_t coins = (o["coins"].get<uint64_t>());

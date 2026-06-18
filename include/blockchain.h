@@ -27,10 +27,12 @@ private:
 	Hash target{};
 
 	std::unordered_map<std::string, Transaction> transactionsPool;
-	std::unordered_map<std::string, UTXO> utxo;
-	std::unordered_map<std::string, size_t> blocksMap;
 	std::unordered_map<std::string, Transaction> transactions;
 	std::unordered_map<std::string, Input> mempoolInputs;
+
+	std::unordered_map<std::string, UTXO> utxo;
+	std::unordered_map<std::string, UTXO> utxoMap;
+	std::unordered_map<std::string, size_t> blocksMap;
 
 
 	DBManager blocksDB;
