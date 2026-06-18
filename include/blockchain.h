@@ -46,7 +46,6 @@ private:
 	bool verifyDifficulty(const Hash& hash);
 
 	void updateUTXO(const Transaction& transaction);
-	void loadTransactions();
 	void loadBlocks();
 	void loadPoolTransactions();
 	void createGenesisBlock();

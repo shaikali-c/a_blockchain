@@ -3,6 +3,7 @@
 	// TODO: Make the path portable
 	// TODO: Make UTXO find much faster by maintaining another set with sorted coins
 	// TODO: Make difficulty adjusted based on blocks been mined every minute
+
 	Blockchain::Blockchain() : blocksDB("blocks"), poolsDB("pool"), height{0}, difficulty(1) {
 		loadBlocks();
 		loadPoolTransactions();
@@ -61,6 +62,10 @@
 		for (it->SeekToFirst(); it->Valid(); it->Next()) {
 			std::string value = it->value().ToString();
 			Block block = deserializeBlock(value);
+			for (const auto& t : block.transactions) {
+				transactions.emplace(Common::toHex(t.transaction_hash), t);
+				updateUTXO(t);
+			}
 			blocks.push_back(block);
 			auto hashHex = Common::toHex(block.blockHeader.hash);
 			blocksMap[hashHex] = blocks.size() - 1;
@@ -70,19 +75,6 @@
 			std::cerr << "Iterator error: " << it->status().ToString() << std::endl;
 		}
 		Logger::log("BLOCKS LOADED");
-		loadTransactions();
-	}
-
-	void Blockchain::loadTransactions() {
-		for (const auto& b : blocks) {
-			for (const auto& t : b.transactions) {
-				transactions.emplace(Common::toHex(t.transaction_hash), t);
-			}
-		}
-		for (const auto& [txid, tx] : transactions) {
-			updateUTXO(tx);
-		}
-		Logger::log("TRANSACTIONS LOADED");
 	}
 
 	void Blockchain::loadPoolTransactions() {
@@ -134,8 +126,8 @@
 		if(signedTransaction.transaction.coins <= 0) return std::unexpected("Invalid transaction amount");
 		if (!verifyTransaction(signedTransaction.transaction)) return std::unexpected("Transaction verification failed");
 		if (!verifySignature(signedTransaction)) return std::unexpected("Signature verification failed");
-		transactions.emplace(Common::toHex(signedTransaction.transaction.transaction_hash), signedTransaction.transaction);
-		auto transactionHashHex = Common::toHex < Hash{}.size() > (signedTransaction.transaction.transaction_hash);
+
+		auto transactionHashHex = Common::toHex(signedTransaction.transaction.transaction_hash);
 		transactionsPool.emplace(transactionHashHex, signedTransaction.transaction);
 		poolsDB.saveKey(transactionHashHex, signedTransaction.transaction.serializeTransaction());
 		return {};
@@ -148,7 +140,6 @@
 	bool Blockchain::transactionInPool(const std::string& txHash) const {
 		return transactionsPool.find(txHash) != transactionsPool.end();
 	}
-
 
 	void Blockchain::listTransactions() const {
 		if (!transactions.empty()) {
@@ -360,13 +351,14 @@
 
 		res.set_header("Content-Type", "application/json");
 		for (size_t i = 1; i < json["transactions"].size(); i++) {
-			if (transactionsPool.find(json["transactions"][i]) == transactionsPool.end()) {
+			const auto& t = json["transactions"][i];
+			if (transactionsPool.find(t) == transactionsPool.end()) {
 				res.code = 500;
 				errorJson["error"] = "Invalid transaction provided";
 				res.body = errorJson.dump();
 				return res;
 			}
-			transactionHashes.emplace_back(Common::toBytes < Hash{}.size() > (json["transactions"][i]));
+			transactionHashes.emplace_back(Common::toBytes < Hash{}.size() > (t));
 		}
 
 		Hash expectedMerkleRoot = Cryptography::computeMerkleRoot(transactionHashes);
@@ -395,9 +387,11 @@
 		}
 
 		std::vector<Transaction> blockTransactions;
+
 		UTXO minerUTXO{ *minerAddress, MINER_REWARD };
 		Transaction tx{ *minerAddress, MINER_REWARD, {minerUTXO} };
-		blockTransactions.push_back(tx);
+
+		blockTransactions.emplace_back(tx);
 		for (size_t i = 1; i < transactionHashes.size(); i++) {
 			const auto& t = transactionHashes[i];
 			std::string txHashHex = Common::toHex(t);
@@ -406,7 +400,7 @@
 			if (it == transactionsPool.end()) {
 				Logger::reject("B: TRANSACTION NOT FOUND IN POOL\n");
 				errorJson["error"] = "Transaction not found in pool: " + txHashHex;
-				res.code = 500;
+				res.code = 404;
 				res.body = errorJson.dump();
 				return res;
 			}
@@ -422,6 +416,7 @@
 		blocksDB.saveKey(generateBlockKey(), serializeBlock(blocks.back()));
 
 		for (const auto& t : blockTransactions) {
+			transactions.emplace(Common::toHex(t.transaction_hash), t);
 			for (const auto& i : t.inputs) {
 				mempoolInputs.erase(i.getUTXOKey());
 			}
