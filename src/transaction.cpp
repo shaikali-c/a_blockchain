@@ -5,6 +5,11 @@ std::string Input::getUTXOKey() const {
     return Common::toHex(transaction_hash) + ":" + std::to_string(output_index);
 }
 
+bool Input::operator==(const Input& in) const {
+    return (transaction_hash == in.transaction_hash) && (output_index == in.output_index);
+}
+
+
 std::string Input::serialize() const {
     std::string raw;
     raw.append(reinterpret_cast<const char*>(transaction_hash.data()), transaction_hash.size());

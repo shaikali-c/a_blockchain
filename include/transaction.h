@@ -44,6 +44,7 @@ struct Input {
     Input() = default;
     std::string getUTXOKey() const;
     std::string serialize() const;
+    bool operator==(const Input&) const;
 };
 
 class Transaction {

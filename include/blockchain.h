@@ -31,16 +31,15 @@ private:
 	std::unordered_map<std::string, Input> mempoolInputs;
 
 	std::unordered_map<std::string, UTXO> utxo;
-	std::unordered_map<std::string, UTXO> utxoMap;
 	std::unordered_map<std::string, size_t> blocksMap;
-
 
 	DBManager blocksDB;
 	DBManager poolsDB;
 
 	static constexpr uint64_t UNITS = 1000000;
+	static constexpr uint64_t MINER_REWARD = 3 * UNITS; 
+	static constexpr uint64_t GENESIS_REWARD = 15 * UNITS; 
 	static constexpr std::string_view LOGS_FOLDER = "logs";
-	static constexpr uint64_t MINER_REWARD = 3 * UNITS;
 
 	bool verifySignature(const SignedTransaction& st);
 	bool verifyTransaction(const Transaction& transaction);
@@ -56,9 +55,10 @@ private:
 
 	crow::response createTransaction(const crow::request& req);
 	crow::response createBlock(const crow::request& req);
-	crow::response getUTXO(const std::string& address);
+	crow::response getUTXO(const crow::request& req);
 	crow::response getTransaction(const std::string& hash);
 	crow::response getBlock(const std::string& hash);
+	crow::response getChain();
 
 	std::string serializeBlock(const Block& block);
 	Block deserializeBlock(const std::string&);

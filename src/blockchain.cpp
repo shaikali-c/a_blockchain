@@ -12,18 +12,18 @@
 	}
 
 	void Blockchain::createGenesisBlock() {
-		Hash hash = Common::toBytes < Hash{}.size() > ("00ed2b18a04fcda54d010e119158382d75b70de330a7f532dfb1734a6cef52de");
 		Hash previousHash{};
 		previousHash.fill(0x00);
+		Hash hash = Common::toBytes < Hash{}.size() > ("00007f009a96c42684187a363b47504d5461b99852853670d4edd3adc4ea777e");
+		Hash mHash = Common::toBytes < Hash{}.size() > ("22e89138181eeff1e1b80dd0aa5467b47fa65fb3036bb835f6de0d3917ba8efc");;
 
 		Addr shaik = Common::toBytes < Addr{}.size() >("f45a20e043b01f65638a46831ce79b8fec3f6737");
-		Hash mHash = Common::toBytes < Hash{}.size() > ("45f81bc87cb00781d3e9ca528b6720fe266fda2e9bed256994ad4046e21d0060");;
 
-		UTXO utxo{ shaik, 500 * UNITS };
+		UTXO utxo{ shaik, GENESIS_REWARD };
 		Transaction tx{ shaik, utxo.owner, utxo.coins, {}, {utxo}, 1781545365 };
-		uint64_t nonce = 74;
+		uint64_t nonce = 31496, timestamp = 1781545365; // These values were mined and hardcoded into the genesis block to ensure all nodes share the same chain origin
 
-		Block gBlock{ previousHash, hash, 1781545365 , nonce, {tx} };
+		Block gBlock{ previousHash, hash, timestamp , nonce, {tx} };
 		gBlock.blockHeader.merkleRoot = mHash;
 		blocks.push_back(gBlock);
 		blocksDB.saveKey(generateBlockKey(), serializeBlock(gBlock));
@@ -176,7 +176,7 @@
 		tabulate::Table utxo_table;
 		utxo_table.add_row({ "UTXO Key", "Owner", "Coins" });
 		for (const auto& [utxo_key, out] : utxo) {
-			utxo_table.add_row({ utxo_key, Common::toHex(out.owner), std::to_string(out.coins) });
+			utxo_table.add_row({ utxo_key, Common::toHex(out.owner), std::to_string(out.coins / UNITS) });
 		}
 		std::cout << utxo_table << "\n";
 	}	
@@ -222,28 +222,37 @@
 
 	}
 
-	crow::response Blockchain::getUTXO(const std::string& address) {
-		nlohmann::json json;
-		if (address.size() != Addr{}.size() * 2) {
-			json["error"] = "Invalid address";
-			return crow::response{ 400, json.dump() };
-		}
-		Addr addr = Common::toBytes < Addr{}.size() > (address);
-		uint64_t coins{};
+	crow::response Blockchain::getUTXO(const crow::request& req) {
+		auto json = nlohmann::json::parse(req.body);
+		nlohmann::json responseJson, errorJson;
+
+		crow::response response;
+		response.set_header("Content-Type", "application/json");
+
+		auto address_ = getBytes < Addr{}.size() > (json, "address", errorJson, response);
+		auto coins_ = getField<uint64_t>(json, "coins", errorJson, response);
+
+		if (!address_ || !coins_) return response;
+
+		const auto& address = *address_;
+		const uint64_t& coins = *coins_;
+
+		uint64_t c = 0;
 		for (const auto& [utxoKey, out] : utxo) {
-			if (out.owner == addr) {
+			if (out.owner == address) {
 				nlohmann::json utxoJson;
-				Input input{utxoKey};
+				Input input{ utxoKey };
 				utxoJson["utxoKey"] = Common::toHex(input.transaction_hash);
 				utxoJson["outputIndex"] = input.output_index;
 				json["utxos"].push_back(utxoJson);
-				coins += out.coins;
+				c += out.coins;
+				if (c >= coins) break;
 			}
 		}
-		json["coins"] = coins;
+		json["coins"] = c;
 		crow::response res;
-		res.code = 200;
 		res.set_header("Content-Type", "application/json");
+		res.code = 200;
 		res.body = json.dump();
 		return res;
 	}
@@ -313,6 +322,7 @@
 
 		for (const auto& i : inputs) {
 			if (mempoolInputs.find(i.getUTXOKey()) != mempoolInputs.end()) {
+				Logger::reject("Inputs are already beign used");
 				errorJson["error"] = "Inputs are already beign used";
 				res.body = errorJson.dump();
 				return res;
@@ -339,7 +349,7 @@
 		return successJson.dump();
 	}
 
-	// Note: Sender will always send public keys, always
+	// Note: Sender will always send public keys, always :D
 
 	crow::response Blockchain::createBlock(const crow::request& req) {
 		auto json = nlohmann::json::parse(req.body);
@@ -443,6 +453,8 @@
 	crow::response Blockchain::getBlock(const std::string& hash) {
 		crow::response response;
 		nlohmann::json responseJson;
+		response.set_header("Content-Type", "application/json");
+
 		if (hash.size() != crypto_generichash_BYTES * 2) {
 			responseJson["error"] = "Invalid block hash";
 			response.code = 404;
@@ -475,20 +487,39 @@
 		return response;
 	}
 
+	crow::response Blockchain::getChain() {
+		crow::response response;
+		nlohmann::json responseJson;
+		response.set_header("Content-Type", "application/json");
+		response.code = 200;
+		responseJson["tip"] = Common::toHex(blocks.back().blockHeader.hash);
+		responseJson["height"] = blocks.size() - 1;
+		responseJson["difficulty"] = difficulty;
+		responseJson["transactionsCount"] = transactions.size();
+		responseJson["utxosCount"] = utxo.size();
+		responseJson["poolCount"] = transactionsPool.size();
+		responseJson["supply"] = transactionsPool.size();
+		response.body = responseJson.dump();
+		return response;
+	}
+
 	void Blockchain::startServer() {
 		crow::SimpleApp server;
 		server.loglevel(crow::LogLevel::Info);
-		CROW_ROUTE(server, "/utxo/<string>")([this](std::string address) {
-			return getUTXO(address);
-		});
 		CROW_ROUTE(server, "/transactions/<string>")([this](std::string hash) {
 			return getTransaction(hash);
 		});
 		CROW_ROUTE(server, "/blocks/<string>")([this](std::string hash) {
 			return getBlock(hash);
 		});
+		CROW_ROUTE(server, "/chain")([this]() {
+			return getChain();
+		});
 		CROW_ROUTE(server, "/createTransaction").methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
 			return createTransaction(req);
+		});
+		CROW_ROUTE(server, "/utxo").methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
+			return getUTXO(req);
 		});
 		CROW_ROUTE(server, "/validateBlock").methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
 			return createBlock(req);
