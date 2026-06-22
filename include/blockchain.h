@@ -43,8 +43,9 @@ private:
 
 	bool verifySignature(const SignedTransaction& st);
 	bool verifyTransaction(const Transaction& transaction);
-	bool transactionInPool(const std::string&) const;
 	bool verifyDifficulty(const Hash& hash);
+	bool verifyInputs(const SignedTransaction& st);
+	bool transactionInPool(const std::string&) const;
 
 	void updateUTXO(const Transaction& transaction);
 	void loadBlocks();

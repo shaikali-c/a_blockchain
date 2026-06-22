@@ -14,10 +14,10 @@
 	void Blockchain::createGenesisBlock() {
 		Hash previousHash{};
 		previousHash.fill(0x00);
-		Hash hash = Common::toBytes < Hash{}.size() > ("00007f009a96c42684187a363b47504d5461b99852853670d4edd3adc4ea777e");
-		Hash mHash = Common::toBytes < Hash{}.size() > ("22e89138181eeff1e1b80dd0aa5467b47fa65fb3036bb835f6de0d3917ba8efc");;
+		Hash hash = toBytes < Hash{}.size() > ("00007f009a96c42684187a363b47504d5461b99852853670d4edd3adc4ea777e");
+		Hash mHash = toBytes < Hash{}.size() > ("22e89138181eeff1e1b80dd0aa5467b47fa65fb3036bb835f6de0d3917ba8efc");;
 
-		Addr shaik = Common::toBytes < Addr{}.size() >("f45a20e043b01f65638a46831ce79b8fec3f6737");
+		Addr shaik = toBytes < Addr{}.size() >("f45a20e043b01f65638a46831ce79b8fec3f6737");
 
 		UTXO utxo{ shaik, GENESIS_REWARD };
 		Transaction tx{ shaik, utxo.owner, utxo.coins, {}, {utxo}, 1781545365 };
@@ -55,6 +55,20 @@
 		return hash <= target;
 	}
 
+	bool Blockchain::verifyInputs(const SignedTransaction& st) {
+		Addr address = computeAddress(st.publicKey);
+		uint64_t total_inputs = 0;
+		uint64_t total_output = 0;
+		for (const auto& in : st.transaction.inputs) {
+			auto it = utxo.find(in.getUTXOKey());
+			if (it == utxo.end()) return false;
+			if (it->second.owner != address) return false;
+			total_inputs += it->second.coins;
+		}
+		for (const auto& out : st.transaction.outputs) total_output += out.coins;
+		return total_inputs >= total_output;
+	}
+
 	void Blockchain::loadBlocks() {
 		std::unique_ptr<leveldb::Iterator> it(
 			blocksDB.db->NewIterator(leveldb::ReadOptions())
@@ -63,11 +77,11 @@
 			std::string value = it->value().ToString();
 			Block block = deserializeBlock(value);
 			for (const auto& t : block.transactions) {
-				transactions.emplace(Common::toHex(t.transaction_hash), t);
+				transactions.emplace(toHex(t.transaction_hash), t);
 				updateUTXO(t);
 			}
 			blocks.push_back(block);
-			auto hashHex = Common::toHex(block.blockHeader.hash);
+			auto hashHex = toHex(block.blockHeader.hash);
 			blocksMap[hashHex] = blocks.size() - 1;
 		}
 
@@ -96,7 +110,7 @@
 		return crypto_sign_verify_detached(st.signature.data(), st.transaction.transaction_hash.data(), st.transaction.transaction_hash.size(), st.publicKey.data()) == 0;
 	}
 
-	bool Blockchain::verifyTransaction(const Transaction& transaction) {
+	bool Blockchain::verifyTransaction(const Transaction& transaction) {	
 		uint64_t coins = 0;
 		for (const auto& in : transaction.inputs) {
 			auto it = utxo.find(in.getUTXOKey());
@@ -117,7 +131,7 @@
 		for (size_t i = 0; i < transaction.outputs.size(); i++) {
 			std::string utxoKey;
 			utxoKey.reserve(TransactionHashSize * 2 + 1 + 10);
-			utxoKey.append(Common::toHex(transaction.transaction_hash));
+			utxoKey.append(toHex(transaction.transaction_hash));
 			utxoKey.push_back(':');
 			utxoKey.append(std::to_string(i));
 			utxo.emplace(utxoKey, transaction.outputs[i]);
@@ -127,9 +141,9 @@
 	std::expected<void, std::string> Blockchain::addTransaction(const SignedTransaction& signedTransaction) {
 		if(signedTransaction.transaction.coins <= 0) return std::unexpected("Invalid transaction amount");
 		if (!verifyTransaction(signedTransaction.transaction)) return std::unexpected("Transaction verification failed");
+		if (!verifyInputs(signedTransaction)) return std::unexpected("Ownership verification failed");
 		if (!verifySignature(signedTransaction)) return std::unexpected("Signature verification failed");
-
-		auto transactionHashHex = Common::toHex(signedTransaction.transaction.transaction_hash);
+		auto transactionHashHex = toHex(signedTransaction.transaction.transaction_hash);
 		transactionsPool.emplace(transactionHashHex, signedTransaction.transaction);
 		poolsDB.saveKey(transactionHashHex, signedTransaction.transaction.serializeTransaction());
 		return {};
@@ -148,7 +162,7 @@
 			tabulate::Table transactions_table;
 			transactions_table.add_row({ "Transaction Hash", "Sender", "Receiver", "Coins", "Timestamp" });
 			for (const auto& [txid, tx] : transactions) {
-				transactions_table.add_row({ Common::toHex(tx.transaction_hash), Common::toHex(tx.sender), Common::toHex(tx.receiver), std::to_string(tx.coins), std::to_string(tx.timestamp) });
+				transactions_table.add_row({ toHex(tx.transaction_hash), toHex(tx.sender), toHex(tx.receiver), std::to_string(tx.coins), std::to_string(tx.timestamp) });
 			}
 			std::cout << transactions_table << "\n";
 		}
@@ -159,7 +173,7 @@
 			tabulate::Table transactions_table;
 			transactions_table.add_row({ "Pool Hash", "Sender", "Receiver", "Coins", "Timestamp" });
 			for (const auto& [txid, tx] : transactionsPool) {
-				transactions_table.add_row({ Common::toHex(tx.transaction_hash), Common::toHex(tx.sender), Common::toHex(tx.receiver), std::to_string(tx.coins), std::to_string(tx.timestamp) });
+				transactions_table.add_row({ toHex(tx.transaction_hash), toHex(tx.sender), toHex(tx.receiver), std::to_string(tx.coins), std::to_string(tx.timestamp) });
 			}
 			std::cout << transactions_table << "\n";
 		}
@@ -168,7 +182,7 @@
 
 	void Blockchain::listBlocks() {
 		for (size_t i = 0; i < blocks.size(); i++) {
-			std::cout << "Block " << i << "\n\t\tHash: " << Common::toHex(blocks[i].blockHeader.hash) << "\n\t\tPrevious hash: " << Common::toHex(blocks[i].blockHeader.previous_hash) << "\n\t\tNonce: " << blocks[i].blockHeader.nonce << "\n";
+			std::cout << "Block " << i << "\n\t\tHash: " << toHex(blocks[i].blockHeader.hash) << "\n\t\tPrevious hash: " << toHex(blocks[i].blockHeader.previous_hash) << "\n\t\tNonce: " << blocks[i].blockHeader.nonce << "\n";
 		}
 	}
 
@@ -176,7 +190,7 @@
 		tabulate::Table utxo_table;
 		utxo_table.add_row({ "UTXO Key", "Owner", "Coins" });
 		for (const auto& [utxo_key, out] : utxo) {
-			utxo_table.add_row({ utxo_key, Common::toHex(out.owner), std::to_string(out.coins / UNITS) });
+			utxo_table.add_row({ utxo_key, toHex(out.owner), std::to_string(out.coins / UNITS) });
 		}
 		std::cout << utxo_table << "\n";
 	}	
@@ -242,7 +256,7 @@
 			if (out.owner == address) {
 				nlohmann::json utxoJson;
 				Input input{ utxoKey };
-				utxoJson["utxoKey"] = Common::toHex(input.transaction_hash);
+				utxoJson["utxoKey"] = toHex(input.transaction_hash);
 				utxoJson["outputIndex"] = input.output_index;
 				json["utxos"].push_back(utxoJson);
 				c += out.coins;
@@ -270,8 +284,8 @@
 			return res;
 		}
 		responseJson["transactionHash"] = hash;
-		responseJson["sender"] = Common::toHex(it->second.sender);
-		responseJson["receiver"] = Common::toHex(it->second.receiver);
+		responseJson["sender"] = toHex(it->second.sender);
+		responseJson["receiver"] = toHex(it->second.receiver);
 		responseJson["timestamp"] = it->second.timestamp;
 		responseJson["amount"] = static_cast<double>(it->second.coins) / UNITS;
 	
@@ -287,10 +301,10 @@
 		crow::response res;
 		res.set_header("Content-Type", "application/json");
 
-		auto senderPK_ = getBytes < PublicKey{}.size() > (json, "sender", errorJson, res);
-		auto receiver_ = getBytes < Addr{}.size() > (json, "receiver", errorJson, res);
+		auto senderPK_	= getBytes < PublicKey{}.size() > (json, "sender", errorJson, res);
+		auto receiver_	= getBytes < Addr{}.size() > (json, "receiver", errorJson, res);
 		auto signature_ = getBytes < Signature{}.size() > (json, "signature", errorJson, res);
-		auto amount_ = getField<uint64_t>(json, "amount", errorJson, res);
+		auto amount_	= getField<uint64_t>(json, "amount", errorJson, res);
 		auto timestamp_ = getField<uint64_t>(json, "timestamp", errorJson, res);
 
 		if (!senderPK_|| !receiver_|| !signature_ || !amount_ || !timestamp_) return res;
@@ -301,7 +315,7 @@
 		const auto& timestamp = *timestamp_;
 		const auto& amount = *amount_;
 
-		Addr sender = Common::computeAddress(senderPK);
+		Addr sender = computeAddress(senderPK);
 
 		std::vector<Input> inputs;
 		std::vector<UTXO> outputs;
@@ -315,7 +329,7 @@
 			inputs.emplace_back(i);
 		}
 		for (const auto& o : json["outputs"]) {
-			Addr addr = Common::toBytes < Addr{}.size() > (o["address"].get<std::string>());
+			Addr addr = toBytes < Addr{}.size() > (o["address"].get<std::string>());
 			uint64_t coins = (o["coins"].get<uint64_t>());
 			outputs.emplace_back(addr, coins);
 		}
@@ -357,17 +371,17 @@
 		nlohmann::json successJson;
 		crow::response res;
 
-		auto hash = getBytes < Hash{}.size() > (json, "hash", errorJson, res);
-		auto merkleRoot = getBytes < Hash{}.size() > (json, "merkleRoot", errorJson, res);
+		auto hash		  = getBytes < Hash{}.size() > (json, "hash", errorJson, res);
+		auto merkleRoot	  = getBytes < Hash{}.size() > (json, "merkleRoot", errorJson, res);
 		auto previousHash = getBytes < Hash{}.size() > (json, "previousHash", errorJson, res);
 		auto minerAddress = getBytes < Addr{}.size() > (json, "minerAddress", errorJson, res);
-		auto nonce = getField<uint64_t>(json, "nonce", errorJson, res);
-		auto timestamp = getField<uint64_t>(json, "timestamp", errorJson, res);
+		auto nonce		  = getField<uint64_t>(json, "nonce", errorJson, res);
+		auto timestamp	  = getField<uint64_t>(json, "timestamp", errorJson, res);
 
 		if (!hash || !merkleRoot || !previousHash || !minerAddress || !nonce || !timestamp) return res;
 
 		std::vector<Hash> transactionHashes;
-		transactionHashes.emplace_back(Common::toBytes < Hash{}.size() > (json["transactions"][0]));
+		transactionHashes.emplace_back(toBytes < Hash{}.size() > (json["transactions"][0]));
 
 		res.set_header("Content-Type", "application/json");
 		for (size_t i = 1; i < json["transactions"].size(); i++) {
@@ -378,7 +392,7 @@
 				res.body = errorJson.dump();
 				return res;
 			}
-			transactionHashes.emplace_back(Common::toBytes < Hash{}.size() > (t));
+			transactionHashes.emplace_back(toBytes < Hash{}.size() > (t));
 		}
 
 		Hash expectedMerkleRoot = Cryptography::computeMerkleRoot(transactionHashes);
@@ -407,14 +421,12 @@
 		}
 
 		std::vector<Transaction> blockTransactions;
-
 		UTXO minerUTXO{ *minerAddress, MINER_REWARD };
-		Transaction tx{ *minerAddress, MINER_REWARD, {minerUTXO} };
+		blockTransactions.emplace_back(*minerAddress, MINER_REWARD, std::vector{ minerUTXO });
 
-		blockTransactions.emplace_back(tx);
 		for (size_t i = 1; i < transactionHashes.size(); i++) {
 			const auto& t = transactionHashes[i];
-			std::string txHashHex = Common::toHex(t);
+			std::string txHashHex = toHex(t);
 
 			auto it = transactionsPool.find(txHashHex);
 			if (it == transactionsPool.end()) {
@@ -428,15 +440,12 @@
 			poolsDB.remove(it->first);
 			transactionsPool.erase(it);
 		}
-		Block block{ *previousHash, *hash, *timestamp, *nonce, blockTransactions };
-		blocks.push_back(block);
-
-		auto hashHex = json["hash"].get<std::string>();
-		blocksMap[hashHex] = blocks.size() - 1;
+		blocks.emplace_back(*previousHash, *hash, *timestamp, *nonce, blockTransactions);
+		blocksMap[toHex(*hash)] = blocks.size() - 1;
 		blocksDB.saveKey(generateBlockKey(), serializeBlock(blocks.back()));
 
 		for (const auto& t : blockTransactions) {
-			transactions.emplace(Common::toHex(t.transaction_hash), t);
+			transactions.emplace(toHex(t.transaction_hash), t);
 			for (const auto& i : t.inputs) {
 				mempoolInputs.erase(i.getUTXOKey());
 			}
@@ -473,13 +482,13 @@
 		const auto& b = blocks[it->second];
 
 		responseJson["hash"] = hash;
-		responseJson["previousHash"] = Common::toHex(b.blockHeader.previous_hash);
-		responseJson["merkleRoot"] = Common::toHex(b.blockHeader.merkleRoot);
+		responseJson["previousHash"] = toHex(b.blockHeader.previous_hash);
+		responseJson["merkleRoot"] = toHex(b.blockHeader.merkleRoot);
 		responseJson["nonce"] = b.blockHeader.nonce;
 		responseJson["timestamp"] = b.blockHeader.timestamp;
 
 		auto transactionsJson = nlohmann::json::array();
-		for (const auto& t : b.transactions) transactionsJson.push_back(Common::toHex(t.transaction_hash));
+		for (const auto& t : b.transactions) transactionsJson.push_back(toHex(t.transaction_hash));
 
 		responseJson["transactions"] = transactionsJson;
 		response.code = 200;
@@ -492,13 +501,12 @@
 		nlohmann::json responseJson;
 		response.set_header("Content-Type", "application/json");
 		response.code = 200;
-		responseJson["tip"] = Common::toHex(blocks.back().blockHeader.hash);
+		responseJson["tip"] = toHex(blocks.back().blockHeader.hash);
 		responseJson["height"] = blocks.size() - 1;
 		responseJson["difficulty"] = difficulty;
 		responseJson["transactionsCount"] = transactions.size();
 		responseJson["utxosCount"] = utxo.size();
 		responseJson["poolCount"] = transactionsPool.size();
-		responseJson["supply"] = transactionsPool.size();
 		response.body = responseJson.dump();
 		return response;
 	}

@@ -2,7 +2,7 @@
 
 
 std::string Input::getUTXOKey() const {
-    return Common::toHex(transaction_hash) + ":" + std::to_string(output_index);
+    return toHex(transaction_hash) + ":" + std::to_string(output_index);
 }
 
 bool Input::operator==(const Input& in) const {
@@ -20,7 +20,7 @@ std::string Input::serialize() const {
 Input::Input(const std::string& utxoKey) { // Butt, not every Butt is a Butt :D
     size_t colonPos = utxoKey.find(':');
     if (colonPos != std::string::npos) {
-        transaction_hash = Common::toBytes < Hash{}.size()>(utxoKey.substr(0, colonPos));
+        transaction_hash = toBytes < Hash{}.size()>(utxoKey.substr(0, colonPos));
         output_index = std::stoi(utxoKey.substr(colonPos + 1));
     }
 }
@@ -100,7 +100,7 @@ void Transaction::computeTransactionHash() {
     offset += sizeof(coins);
     std::memcpy(bytes.data() + offset, &timestamp, sizeof(timestamp));;
 
-    transaction_hash = Common::hashBytesVector(bytes);
+    transaction_hash = hashBytesVector(bytes);
 }
 
 void Transaction::computeTransactionHash(uint64_t t) {
@@ -143,7 +143,7 @@ void Transaction::computeTransactionHash(uint64_t t) {
     std::memcpy(bytes.data() + offset, &coins, sizeof(coins));
     offset += sizeof(coins);
     std::memcpy(bytes.data() + offset, &timestamp, sizeof(timestamp));
-    transaction_hash = Common::hashBytesVector(bytes);
+    transaction_hash = hashBytesVector(bytes);
 }
 
 

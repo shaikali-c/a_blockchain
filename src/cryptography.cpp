@@ -14,7 +14,7 @@ Hash Cryptography::computeMerkleRoot(const std::vector<Hash>& transactions) {
             std::array<unsigned char, crypto_generichash_BYTES * 2> combinedHash{};
             std::copy(currentLevel[i].begin(), currentLevel[i].end(), combinedHash.begin());
             std::copy(currentLevel[i + 1].begin(), currentLevel[i + 1].end(), combinedHash.begin() + currentLevel[i].size());
-            nextLevel.push_back(Common::hashBytes(combinedHash));
+            nextLevel.push_back(hashBytes(combinedHash));
         }
         currentLevel = std::move(nextLevel);
     }
