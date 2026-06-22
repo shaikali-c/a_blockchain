@@ -1,74 +1,109 @@
-# Blockchain
-A custom blockchain implementation in C++ with UTXO-based transactions, persistent storage, and a REST API.
+# Axis
+A lightweight, proof-of-work blockchain implementation written in C++. Axis features a UTXO-based transaction model, digital signatures, persistent storage via LevelDB, and a REST API powered by Crow.
 
----
+## Overview
+Axis is a fully functional blockchain node that can:
+- Validate and store blocks and transactions
+- Maintain a UTXO set
+- Verify cryptographic signatures (Ed25519 via libsodium)
+- Accept transactions into a mempool
+- Accept mined blocks via an API endpoint
+- Persist all chain data and the transaction pool to disk using LevelDB
+- Serve chain state and data over a REST API
 
-## What is this?
-A from scratch blockchain built in C++ that handles wallets, transactions, and a UTXO set, all backed by LevelDB and exposed via a HTTP server.
-
----
 
 ## Features
 
-- **UTXO model** : tracks unspent outputs just like Bitcoin does
-- **Ed25519 key pairs** : signing and verification via libsodium
-- **LevelDB persistence** : UTXOs and transactions survive restarts
-- **REST API** : get transactions or create new ones over HTTP
-- **Pretty table output** : lists transactions and UTXOs in the terminal nicely (tabulate)
-- **Async loading** : UTXO and transaction data loads in parallel on startup
+- Proof-of-Work consensus with configurable difficulty
+- UTXO-based accounting for transaction validation
+- Ed25519 digital signatures for transaction authorization
+- Merkle tree root verification for block integrity
+- Transaction mempool with input double-spend protection
+- Persistent storage using LevelDB for blocks and pending transactions
+- REST API built with Crow for easy integration
+- CLI inspection tools (list blocks, transactions, UTXOs, pool)
+- Deterministic serialization/deserialization for on-disk storage
+- Singleton node instance by design
 
----
+## Dependencies
 
-## dependencies
+| Library              | Purpose |
+| :---------------- | :------- |
+| C++20        |   Language standard   |
+| nlohmann/json           |   JSON parsing and serialization   |
+| libsodium    |  Cryptography (Ed25519 signatures, hashing primitives)   |
+| LevelDB |  Persistent key-value storage   |
+| Crow |  Lightweight HTTP server / REST API   | 
 
-| Library | Why |
-|---|---|
-| [libsodium](https://libsodium.org) | Crypto (hashing, signing, key gen) |
-| [LevelDB](https://github.com/google/leveldb) | Persistent key-value storage |
-| [Drogon](https://github.com/drogonframework/drogon) | HTTP server / REST API |
-| [tabulate](https://github.com/p-ranav/tabulate) | Terminal table formatting |
-
-## project structure
+## Project Structure
 
 ```
-├── pch.h               # Precompiled header, all includes live here
-├── blockchain.cpp      # Core blockchain logic (transactions, UTXO, routes)
-├── keys.cpp            # Key generation, signing, serialization
-├── common.cpp          # Utility functions (hex, hashing, base64)
-├── databaseManager.cpp # LevelDB wrapper
-├── cryptography.cpp	# Cryptography functions
-└── logger.cpp          # Simple console logger
+Axis/
+├── src/
+│   ├── blockchain.cpp        # Core blockchain logic & API handlers
+│   ├── block.cpp             # Block structures
+│   ├── transaction.cpp       # Transaction, UTXO, Input structures
+│   ├── cryptography.cpp      # Hashing, signing, verification, Merkle root
+│   ├── utils.cpp             # Helpers (hex/bytes, serialization utils)
+│   ├── db.cpp                # LevelDB wrapper
+│   ├── common.cpp            # Most used functions
+|   └── main.cpp              # Entry point / CLI
+├── include/
+│   ├── blockchain.h
+│   ├── block.h
+│   ├── transaction.h
+│   ├── cryptography.h
+│   ├── utils.h
+│   ├── databaseManager.h
+│   └── common.h
+└── README.md
 ```
 
----
+## Transaction Model
+
+Axis uses an Unspent Transaction Output (UTXO) model:
+
+   - UTXO: { owner (address), coins } tied to an output index of a specific transaction.
+   - Input: References a UTXO via { transaction_hash, output_index }.
+   - Transaction: Contains sender, receiver, amount, inputs, outputs, timestamp, and a computed transaction_hash.
+   - SignedTransaction: Wraps the transaction with the sender's public key and Ed25519 signature.
+
+To spend coins, inputs must reference valid, unspent UTXOs owned by the signer. Outputs define new UTXOs distributed to recipients (and any change).
+
+## Genesis Block
+
+Genesis Block
+
+The genesis block is hardcoded to ensure all nodes start from the same chain origin. It contains:
+    - previousHash of all zeros
+    - Precomputed hash and merkleRoot satisfying difficulty
+    - A single coinbase transaction awarding GENESIS_REWARD to a fixed address
+    - Fixed nonce and timestamp
+
+This block is created automatically on first run if the chain database is empty.
 
 ## How it works
 
-1. On startup, UTXOs and transactions are loaded from LevelDB asynchronously
-2. Call `init(owner)` to bootstrap the chain with an initial coin supply
-3. Transactions consume UTXOs from the sender and create new ones for the receiver (with change going back if needed)
-4. Everything gets persisted to disk automatically
-5. The REST API lets you query or create transactions over HTTP
+On startup, the node:
 
-### Endpoints
+1. Loads all blocks from blocksDB
+2. Rebuilds transactions, utxo, and blocksMap from loaded blocks
+3. Loads pending transactions from poolsDB into the mempool
+4. Creates the genesis block if the chain is empty
+5. Builds the PoW target
 
-```
-GET  /transactions						— list all transactions
-GET  /transaction/{transaction_id}      — get a transaction
-POST /create_transaction				— create a new transaction
-```
+## Endpoints
 
+| Method              | Purpose | Description |
+| :--- | :------------------------ | :---------------------------------------|
+| GET  |  /chain                   | Get current chain summary |
+| GET  |  /blocks/\<hash>          | Get block details by hash |
+| GET  |  /transactions/\<hash>    | Get transaction details by hash |
+| POST |  /utxo                    | Get UTXOs for an address (to construct a transaction) |
+| POST |  /createTransaction       | Submit a signed transaction to the mempool |
+| POST |  /validateBlock           | Submit a mined block for validation and inclusion |
 ---
-
-## Known issues / todo
-
-- [ ] DB path is hardcoded, needs to be made portable
-- [ ] No block structure yet (it's transaction/UTXO focused right now)
-- [ ] Blockchain export to a transferable file
-- [ ] No P2P networking
-- [ ] Windows-only at the moment (`WIN32_LEAN_AND_MEAN` in pch.h)
-
----
-## Notes
-
-This is a learning project. Don't use it in production for anything real,  it's meant to explore how blockchain internals work at a low level.
+## Current Limitations
+- Difficulty is currently static (TODO: dynamic adjustment)
+- UTXO lookups are O(n) (TODO: maintain a sorted/optimized structure)
+- No peer-to-peer networking yet
