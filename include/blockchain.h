@@ -57,8 +57,12 @@ private:
 	crow::response createTransaction(const crow::request& req);
 	crow::response createBlock(const crow::request& req);
 	crow::response getUTXO(const crow::request& req);
+	crow::response getUTXOs();
+	crow::response getPool();
 	crow::response getTransaction(const std::string& hash);
+	crow::response getTransactions();
 	crow::response getBlock(const std::string& hash);
+	crow::response getBlocks();
 	crow::response getChain();
 
 	std::string serializeBlock(const Block& block);

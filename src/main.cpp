@@ -11,10 +11,6 @@ int main()
 	}
 	try {
 		Blockchain& blockchain = Blockchain::getInstance();
-		blockchain.listTransactions();
-		blockchain.listUTXO();
-		blockchain.listPoolTransactions();
-		blockchain.listBlocks();
 		blockchain.startServer();
 	} catch(...) {
 		Logger::error("Blockchain initialization failed :(");
