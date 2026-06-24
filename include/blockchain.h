@@ -63,6 +63,7 @@ private:
 	crow::response getTransactions();
 	crow::response getBlock(const std::string& hash);
 	crow::response getBlocks();
+	crow::response getBalance(const Addr& address);
 	crow::response getChain();
 
 	std::string serializeBlock(const Block& block);

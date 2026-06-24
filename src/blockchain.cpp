@@ -187,6 +187,26 @@ void Blockchain::listBlocks() {
 	}
 }
 
+crow::response Blockchain::getBalance(const Addr& address) {
+	crow::response response;
+	nlohmann::json responseJson, blockJson;
+	response.set_header("Content-Type", "application/json");
+	response.add_header("Access-Control-Allow-Origin", "*");
+	response.add_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
+	response.add_header("Access-Control-Allow-Headers", "Content-Type");
+
+	uint64_t c = 0;
+	for (const auto& [utxoKey, out] : utxo) {
+		if (out.owner == address)
+			c += out.coins;
+	}
+	responseJson["coins"] = c;
+	response.code = 200;
+	response.body = responseJson.dump();
+	return response;
+}
+
+
 void Blockchain::listUTXO() const {
 	tabulate::Table utxo_table;
 	utxo_table.add_row({ "UTXO Key", "Owner", "Coins" });
@@ -268,6 +288,9 @@ crow::response Blockchain::getUTXO(const crow::request& req) {
 		}
 	}
 	json["coins"] = c;
+	if (!c) {
+		json["utxos"] = nlohmann::json::array();
+	}
 	crow::response res;
 	res.set_header("Content-Type", "application/json");
 	res.code = 200;
@@ -664,6 +687,10 @@ void Blockchain::startServer() {
 	});
 	CROW_ROUTE(server, "/pool")([this]() {
 		return getPool();
+	});
+	CROW_ROUTE(server, "/address/<string>")([this](std::string address) {
+		Addr addr = toBytes < Addr{}.size() > (address);
+		return getBalance(addr);
 	});
 	CROW_ROUTE(server, "/createTransaction").methods(crow::HTTPMethod::Post)([this](const crow::request& req) {
 		return createTransaction(req);
