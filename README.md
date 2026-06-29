@@ -1,4 +1,8 @@
 # Axis
+![Homepage](https://github.com/shaikali-c/a_blockchain/blob/316c8b5a7843fbfaa5b6da96a551b4fc69509504/screenshots/working.png)
+The above output screen illustrates the functioning of the developed blockchain wallet application. Through the CLI, the user can create and manage keys, generate and sign transactions, verify digital signatures, and check account balance. This demonstrates the successful implementation of essential wallet-side blockchain operations.
+
+
 A lightweight, proof-of-work blockchain implementation written in C++. Axis features a UTXO-based transaction model, digital signatures, persistent storage via LevelDB, and a REST API powered by Crow.
 
 ## Overview
@@ -71,8 +75,6 @@ Axis uses an Unspent Transaction Output (UTXO) model:
 To spend coins, inputs must reference valid, unspent UTXOs owned by the signer. Outputs define new UTXOs distributed to recipients (and any change).
 
 ## Genesis Block
-
-Genesis Block
 
 The genesis block is hardcoded to ensure all nodes start from the same chain origin. It contains:
     - previousHash of all zeros
