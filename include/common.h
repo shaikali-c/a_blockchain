@@ -8,9 +8,8 @@ using Hash = std::array<unsigned char, crypto_generichash_BYTES>;
 using Signature = std::array<unsigned char, crypto_sign_BYTES>;
 using Addr = std::array<unsigned char, 20>;
 
-
-constexpr size_t TransactionHashSize = crypto_generichash_BYTES;
-constexpr size_t TransactionHashHexSize = crypto_generichash_BYTES * 2;
+constexpr size_t HashSize = crypto_generichash_BYTES;
+constexpr size_t AddrSize = 20;
 
 struct BytesWriter {
 	std::vector<unsigned char> buffer;
@@ -23,7 +22,7 @@ struct BytesWriter {
 	template<typename T>
 	void writeValues(T value) {
 		auto* bytes = reinterpret_cast<unsigned char*>(&value);
-		for (size_t i = 0; i < sizeof(value); i++) buffer.push_back(bytes[i]);
+		for (size_t i = 0; i < sizeof(T); i++) buffer.push_back(bytes[i]);
 	}
 	std::vector<unsigned char> getBuffer() const {
 		return buffer;
@@ -42,6 +41,13 @@ struct BytesReader {
 		T value{};
 		std::memcpy(&value, rawBytes.data() + offset, sizeof(T));
 		offset += sizeof(T);
+		return value;
+	}
+	template <size_t S>
+	std::array<unsigned char, S> readBytes() {
+		std::array<unsigned char, S> value{};
+		std::memcpy(value.data(), rawBytes.data() + offset, value.size());
+		offset += value.size();
 		return value;
 	}
 	std::string readBytesString(size_t size) {

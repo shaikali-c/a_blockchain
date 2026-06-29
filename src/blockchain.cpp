@@ -11,6 +11,7 @@ Blockchain::Blockchain() : blocksDB("blocks"), poolsDB("pool"), height{ 0 }, dif
 	buildTarget();
 }
 
+
 void Blockchain::createGenesisBlock() {
 	Hash previousHash{};
 	previousHash.fill(0x00);
@@ -59,7 +60,7 @@ bool Blockchain::verifyDifficulty(const Hash& hash) {
 bool Blockchain::verifyInputs(const SignedTransaction& st) {
 	Addr address = computeAddress(st.publicKey);
 	uint64_t total_inputs = 0;
-	uint64_t total_output = 0;
+	uint64_t total_output = 0;	
 	for (const auto& in : st.transaction.inputs) {
 		auto it = utxo.find(in.getUTXOKey());
 		if (it == utxo.end()) return false;
@@ -131,7 +132,7 @@ void Blockchain::updateUTXO(const Transaction& transaction) {
 		utxo.erase(in.getUTXOKey());
 	for (size_t i = 0; i < transaction.outputs.size(); i++) {
 		std::string utxoKey;
-		utxoKey.reserve(TransactionHashSize * 2 + 1 + 10);
+		utxoKey.reserve(HashSize * 2 + 1 + 10);
 		utxoKey.append(toHex(transaction.transaction_hash));
 		utxoKey.push_back(':');
 		utxoKey.append(std::to_string(i));
@@ -211,7 +212,7 @@ void Blockchain::listUTXO() const {
 	tabulate::Table utxo_table;
 	utxo_table.add_row({ "UTXO Key", "Owner", "Coins" });
 	for (const auto& [utxo_key, out] : utxo) {
-		utxo_table.add_row({ utxo_key, toHex(out.owner), std::to_string(out.coins / UNITS) });
+		utxo_table.add_row({ utxo_key, toHex(out.owner), double(out.coins / UNITS) });
 	}
 	std::cout << utxo_table << "\n";
 }
@@ -254,7 +255,6 @@ Block Blockchain::deserializeBlock(const std::string& bytes) {
 	Block block{ previousHash, hash, timestamp, nonce, txs };
 	block.blockHeader.merkleRoot = merkleRoot;
 	return block;
-
 }
 
 crow::response Blockchain::getUTXO(const crow::request& req) {

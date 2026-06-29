@@ -23,4 +23,5 @@ public:
 		uint64_t n,
 		const std::vector<Transaction>& txs
 	);
+	Block(const std::string rawBytes);
 };
