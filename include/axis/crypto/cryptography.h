@@ -1,5 +1,5 @@
 #pragma once
-#include "common.h"
+#include "axis/core/common.h"
 
 namespace Cryptography {
 	Hash computeMerkleRoot(const std::vector<Hash>& transactions);

@@ -1,13 +1,16 @@
 #pragma once
 #include <pch.h>
 #include <sodium.h>
-#include <common.h>
+#include <axis/core/common.h>
 
 struct UTXO {
     Addr owner;
     uint64_t coins;
     UTXO(const Addr& addr, uint64_t c) : owner(addr), coins(c) {}
-    std::string serialize() const;
+    [[nodiscard]] std::string serialize() const;
+    static UTXO deserialize(BytesReader& br) {
+        return { br.readBytes<AddrSize>(), br.readBytes<uint64_t>() };
+    }
 };
 
 struct Input {
@@ -16,9 +19,12 @@ struct Input {
     Input(const Hash tx_hash, uint32_t oi) : transaction_hash(tx_hash), output_index(oi) {}
     Input(const std::string&);
     Input() = default;
-    std::string getUTXOKey() const;
-    std::string serialize() const;
-    bool operator==(const Input&) const;
+    [[nodiscard]] std::string getUTXOKey() const;
+    [[nodiscard]] std::string serialize() const;
+    static Input deserialize(BytesReader& br) {
+        return { br.readBytes<HashSize>(), br.readBytes<uint32_t>() };
+    }
+    [[nodiscard]] bool operator==(const Input&) const;
 };
 
 class Transaction {
@@ -54,7 +60,7 @@ public:
     );
     Transaction(const std::string& rawBytes);
 
-    std::string serializeTransaction() const;
+    [[nodiscard]] std::string serializeTransaction() const;
     void deserializeTransaction(const std::string&);
 
 };

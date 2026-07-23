@@ -1,7 +1,5 @@
-#include "pch.h"
-#include "blockchain.h"
-#include "databaseManager.h"
-#include "logger.h"
+#include "axis/blockchain/blockchain.h"
+#include "axis/core/logger.h"
 #include <sodium.h>
 
 int main()
@@ -11,8 +9,7 @@ int main()
 	}
 	try {
 		Blockchain& blockchain = Blockchain::getInstance();
-		blockchain.listUTXO();
-		blockchain.startServer();
+		blockchain.setupConnection();
 	} catch(...) {
 		Logger::error("Blockchain initialization failed :(");
 	}

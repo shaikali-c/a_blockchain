@@ -1,4 +1,4 @@
-#include "cryptography.h"
+#include "axis/crypto/cryptography.h"
 
 Hash Cryptography::computeMerkleRoot(const std::vector<Hash>& transactions) {
     Hash merkleRoot{};

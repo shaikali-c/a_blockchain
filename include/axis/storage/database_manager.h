@@ -1,9 +1,9 @@
 #pragma once
 #include <pch.h>
 
-class DBManager {
+class DatabaseManager {
 public:
-	DBManager(const std::string& path);
+	DatabaseManager(const std::string& path);
 
 	std::unique_ptr<leveldb::DB> db;
 	std::string loadKey(const std::string& key) const;

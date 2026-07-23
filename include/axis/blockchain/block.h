@@ -1,8 +1,8 @@
 #pragma once
 #include "pch.h"
-#include "transaction.h"
-#include "common.h"
-#include "cryptography.h"
+#include "axis/blockchain/transaction.h"
+#include "axis/core/common.h"
+#include "axis/crypto/cryptography.h"
 
 struct BlockHeader {
 	Hash previous_hash;
@@ -23,5 +23,6 @@ public:
 		uint64_t n,
 		const std::vector<Transaction>& txs
 	);
-	Block(const std::string rawBytes);
+	explicit Block(std::string_view rawBytes);
+	[[nodiscard]] std::string serialize() const;
 };
