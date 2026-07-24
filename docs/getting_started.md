@@ -1,144 +1,239 @@
-# Getting Started
+# Getting started
 
-This guide helps a new developer build, run, inspect, and mentally model Axis.
+This guide walks you through building, running, and interacting with an
+Axis node.
 
-## 1. What you are looking at
+## Prerequisites
 
-Axis is a small C++23 blockchain node foundation. In simple terms, it is a server process that:
+### Required dependencies
 
-- stores blocks,
-- stores pending transactions,
-- keeps track of which coins are still spendable,
-- accepts a few network messages over TCP,
-- validates incoming transactions.
+| Dependency | Version | Purpose |
+|------------|---------|---------|
+| C++ compiler | C++23 (GCC 14+, Clang 18+) | Compiling the codebase |
+| CMake | 3.22+ | Build system |
+| libsodium | 1.0.18+ | Cryptographic operations |
+| LevelDB | 1.23+ | Persistent storage |
+| Asio | 1.28+ (header-only) | Networking + coroutines |
 
-It is easiest to think of Axis as a **teaching implementation** of several blockchain building blocks rather than as a complete cryptocurrency.
-
-## 2. Prerequisites
-
-You need:
-
-- CMake 3.16+
-- a C++23 compiler
-- libsodium
-- LevelDB
-- standalone Asio
-- nlohmann_json
-- Crow
-
-Even though Crow and nlohmann_json are not central to the currently running node path, they are included by shared headers and therefore still participate in the build.
-
-## 3. Build the project
-
-From the repository root:
+### Installing on Debian/Ubuntu
 
 ```bash
-cmake -S . -B build -DBUILD_TESTING=ON
-cmake --build build --parallel
+sudo apt update
+sudo apt install build-essential cmake libsodium-dev libleveldb-dev
 ```
 
-## 4. Run tests
+Asio is header-only. If your distribution doesn't package it:
 
 ```bash
-ctest --test-dir build --output-on-failure
+# Download to /usr/local/include
+sudo wget -O /usr/local/include/asio.hpp \
+  https://raw.githubusercontent.com/chriskohlhoff/asio/master/asio/include/asio.hpp
 ```
 
-The current test suite is small and mainly verifies serialization and deserialization round trips for `Transaction` and `Block`.
+Or install via apt if available:
+```bash
+sudo apt install libasio-dev  # may be older version
+```
 
-## 5. Run the node
+### Installing on Arch Linux
 
 ```bash
-./build/blockchain_tx
+sudo pacman -S base-devel cmake libsodium leveldb asio
 ```
 
-Run it from the repository root so the relative database paths `blocks/` and `pool/` resolve correctly.
+### Checking your compiler
 
-## 6. What happens at startup
+```bash
+g++ --version   # needs 14+
+# or
+clang++ --version  # needs 18+
+```
 
-When the program starts, `axis/src/main.cpp` does the following:
+## Building
 
-1. Initializes libsodium with `sodium_init()`.
-2. Retrieves the singleton `Blockchain` instance.
-3. The `Blockchain` constructor opens LevelDB databases.
-4. It loads previously stored blocks.
-5. It loads previously stored mempool transactions.
-6. If no blocks exist, it creates a hardcoded genesis block.
-7. It builds the current proof-of-work target from the configured difficulty.
-8. It starts the TCP accept loop on port `9618`.
+### Quick build
 
-## 7. Your first code-reading path
+```bash
+cd axis
+cmake -B build -DCMAKE_BUILD_TYPE=Release
+cmake --build build
+```
 
-If you want to understand the project quickly, read files in this order:
+This produces:
+- `build/axisd` — the node executable
+- `build/libaxis_core.a` — the core library (for linking tests)
+- `build/axis_core_tests` — the test suite
 
-1. `axis/src/main.cpp`
-2. `axis/include/axis/blockchain/blockchain.h`
-3. `axis/src/blockchain/blockchain.cpp`
-4. `axis/include/axis/blockchain/transaction.h`
-5. `axis/src/blockchain/transaction.cpp`
-6. `axis/include/axis/blockchain/block.h`
-7. `axis/src/blockchain/block.cpp`
-8. `axis/include/axis/core/common.h`
-9. `axis/src/core/common.cpp`
-10. `axis/src/storage/database_manager.cpp`
+### Debug build
 
-## 8. Mental model of the system
+```bash
+cmake -B build -DCMAKE_BUILD_TYPE=Debug
+cmake --build build
+```
 
-Think of the node as owning four important in-memory collections:
+Debug builds include assertions and no optimizations, making them easier to
+step through with a debugger.
 
-- `blocks`: the ordered blockchain,
-- `transactions`: transactions already seen in blocks,
-- `transactionsPool`: pending transactions not yet committed to a block,
-- `utxo`: currently spendable outputs.
+### Build configuration
 
-These collections are reconstructed or extended from LevelDB during startup.
+`CMakeLists.txt` auto-detects dependencies via PkgConfig. Key settings:
 
-## 9. What you can do with the current implementation
+```cmake
+set(CMAKE_CXX_STANDARD 23)
+set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# Uses -Wall -Wextra -Wpedantic -Werror
+```
 
-You can:
+## Running
 
-- query all spendable outputs for an address via `GetUTXOs`,
-- submit a signed transaction via `CreateTransaction`,
-- persist and reload chain and mempool data.
+### Start the node
 
-You cannot yet, in the current code, fully:
+```bash
+./build/axisd
+```
 
-- mine new blocks automatically,
-- synchronize with peers,
-- broadcast blocks,
-- use a built-in wallet,
-- query balances via a completed `GetBalance` path,
-- fetch blocks or transactions over fully implemented handlers.
+This will:
+1. Create `./axis_data/blocks/` and `./axis_data/pool/` directories
+2. If no blocks exist, create the genesis block (height 0)
+3. Rebuild the UTXO set from stored blocks
+4. Reload the mempool from the pool database
+5. Start the TCP server on port 8080
 
-## 10. What beginners often misunderstand
+### Output
 
-### “Coins” are not separate files or records with identities
+```
+Axis node running on port 8080
+```
 
-In Axis, coins live inside transaction outputs called `UTXO`s. A new transaction spends previous outputs and creates new outputs.
+The node runs until you press Ctrl+C. It handles:
+- UTXO queries (GetUTXOs)
+- Transaction submissions (CreateTransaction)
+- Transaction lookups (GetTx, GetMempoolTx)
+- Block range queries (GetBlockRange)
 
-### A transaction hash is not a signature
+### Command-line options
 
-The transaction hash identifies transaction content. The signature proves the sender authorized it.
+```
+--help     Print usage message and exit
+```
 
-### The mempool is not the blockchain
+Currently there is no `--port` or `--data-dir` flag. These are hardcoded.
 
-The mempool is only a holding area for valid-but-not-yet-mined transactions.
+## Interacting with the node
 
-### LevelDB is not a relational database
+### Using netcat / ncat
 
-The project stores raw key/value pairs. There are no SQL tables.
+```bash
+# Get UTXOs for the genesis address
+python3 -c "
+import socket, struct
+s = socket.socket()
+s.connect(('127.0.0.1', 8080))
+# Header: magic(4) + type(1) + payload_len(4 BE)
+# GetUTXOs payload: address(20)
+addr = bytes.fromhex('f45a20e043b01f65638a46831ce79b8fec3f6737')
+payload = addr
+s.sendall(struct.pack('<IB', 0xDEADBEEF, 3))
+s.sendall(struct.pack('>I', len(payload)))
+s.sendall(payload)
+# Read response: header + payload
+resp = s.recv(4096)
+print('Response hex:', resp.hex())
+s.close()
+"
+```
 
-## 11. Recommended first extension tasks
+Expected response (hex):
+```
+deadbeef 04 000000XX
+[varint count] [OutPoint...] [TxOutput...]
+```
 
-Good beginner tasks include:
+### Using a Python client
 
-- add a client example for `GetUTXOs`,
-- implement a missing payload handler such as `GetTransaction`,
-- add tests for malformed packet payloads,
-- document exact endianness assumptions in client code,
-- add a mining loop that consumes `transactionsPool`.
+```python
+#!/usr/bin/env python3
+"""Minimal Axis client."""
+import socket, struct
 
-Before any of those, read:
+class AxisClient:
+    def __init__(self, host='127.0.0.1', port=8080):
+        self.sock = socket.socket()
+        self.sock.connect((host, port))
 
-- [Architecture](architecture.md)
-- [Packet protocol](packet_protocol.md)
-- [Function reference](function_reference.md)
+    def _send(self, msg_type, payload):
+        self.sock.sendall(struct.pack('<IB', 0xDEADBEEF, msg_type))
+        self.sock.sendall(struct.pack('>I', len(payload)))
+        self.sock.sendall(payload)
+
+    def _recv(self):
+        header = self.sock.recv(9)
+        if len(header) < 9: return None
+        magic, type_, plen = struct.unpack('<IB', header[:5]) + (
+            struct.unpack('>I', header[5:9])[0],)
+        payload = self.sock.recv(plen) if plen else b''
+        return type_, payload
+
+    def get_utxos(self, addr_hex):
+        addr = bytes.fromhex(addr_hex)
+        self._send(3, addr)  # GetUTXOs
+        return self._recv()
+
+    def close(self):
+        self.sock.close()
+
+client = AxisClient()
+type_, payload = client.get_utxos(
+    'f45a20e043b01f65638a46831ce79b8fec3f6737')
+print(f'Response type: {type_}, payload: {payload.hex()}')
+client.close()
+```
+
+## Running tests
+
+```bash
+cd axis
+cmake -B build
+cmake --build build
+ctest --test-dir build -V
+```
+
+Or run the test binary directly:
+
+```bash
+./build/axis_core_tests
+```
+
+Expected output:
+
+```
+[==========] Running 5 tests
+[ RUN      ] TransactionSerializationRoundtrip
+[       OK ] TransactionSerializationRoundtrip
+[ RUN      ] BlockSerializationRoundtrip
+[       OK ] BlockSerializationRoundtrip
+[ RUN      ] ChainUTXOQuery
+[       OK ] ChainUTXOQuery
+[ RUN      ] TransactionSignatureValidation
+[       OK ] TransactionSignatureValidation
+[ RUN      ] BadSignatureRejected
+[       OK ] BadSignatureRejected
+[==========] 5 tests passed (0 ms)
+```
+
+## Cleaning up
+
+```bash
+# Remove build artifacts
+rm -rf build/
+
+# Remove blockchain data
+rm -rf axis_data/
+```
+
+## Next steps
+
+- Read `docs/architecture.md` for the high-level design
+- Read `docs/transaction_lifecycle.md` to understand how transactions flow
+- Read `docs/developer_guide.md` for contribution guidelines
+- Read `docs/serialization.md` if you need to add a new message type

@@ -1,233 +1,220 @@
 # Cryptography
 
-This document explains the cryptographic ideas used in Axis without assuming prior knowledge.
+This document describes the cryptographic primitives used in Axis.
 
-## 1. What cryptography is used for in this project
+## Overview
 
-Axis uses cryptography for three main jobs:
+Axis uses exactly two cryptographic operations:
 
-1. hashing data,
-2. verifying transaction signatures,
-3. deriving addresses from public keys.
+| Operation | Algorithm | Implementation |
+|-----------|-----------|----------------|
+| Hashing | Blake2b (256-bit) | libsodium `crypto_generichash` |
+| Digital signatures | Ed25519 | libsodium `crypto_sign_*` |
 
-It does **not** currently implement advanced cryptography like zero-knowledge proofs, script systems, or confidential transactions.
+There is no encryption, no key exchange, and no TLS. Network communication
+is unencrypted (the assumption is that validation happens on the receiving
+end — forging a packet cannot steal coins because forging a signature is
+infeasible).
 
-## 2. Hashing
+## Dependency: libsodium
 
-A hash function turns input data of any size into a fixed-size output.
+[libsodium](https://doc.libsodium.org/) is a modern, portable, cross-platform
+cryptographic library. Axis uses it via a single header
+(`include/axis/crypto.h`) and a thin wrapper (`src/crypto.cpp`).
 
-### Why hashes are useful
+### Why libsodium?
 
-- they detect changes,
-- they provide compact identifiers,
-- they let blocks commit to many transactions,
-- they support proof-of-work comparisons.
+- Well-audited, constant-time implementations
+- Simple API (no complex configuration)
+- Available on all platforms (Linux, macOS, Windows, BSD)
+- Ship-stable API
 
-### Hashes in Axis
+### Linking
 
-The project uses libsodium’s generic hash function:
-
-- `crypto_generichash`
-
-The main hash-related types are:
-
-- `Hash = std::array<unsigned char, crypto_generichash_BYTES>`
-
-That means hashes are fixed-size byte arrays.
-
-## 3. Transaction hashing
-
-Every transaction gets a `transaction_hash`.
-
-### What is hashed
-
-Axis hashes the serialized logical content of a transaction:
-
-- sender,
-- receiver,
-- all inputs,
-- all outputs,
-- coin amount,
-- timestamp.
-
-### Why this exists
-
-The hash gives the transaction a stable identity tied to its contents.
-
-If any of those fields change, the hash changes.
-
-### Where this happens
-
-- `Transaction::computeTransactionHash()`
-- `Transaction::computeTransactionHash(uint64_t)`
-
-## 4. Merkle root hashing
-
-A block needs a compact commitment to all included transactions.
-
-Axis computes a Merkle root from the list of transaction hashes.
-
-### Why this matters
-
-Instead of storing “proof of all transactions” in the header directly, one root hash represents the full set.
-
-### Where this happens
-
-- `Cryptography::computeMerkleRoot()`
-
-### Axis behavior with odd numbers of hashes
-
-If a level has an odd count, Axis duplicates the last hash before combining pairs.
-
-This is a common Merkle-tree simplification.
-
-## 5. Digital signatures
-
-A digital signature is a cryptographic proof that the sender approved some message.
-
-In Axis, the message is the transaction hash.
-
-### Important idea
-
-The node does **not** need the private key to verify a signature.
-It only needs:
-
-- the public key,
-- the message,
-- the signature.
-
-### Signature system used
-
-Axis uses Ed25519 verification via libsodium:
-
-- `crypto_sign_verify_detached`
-
-### Where verification happens
-
-- `Blockchain::verifySignature()`
-
-### What is verified exactly
-
-The node checks that the signature is valid for:
-
-- `st.transaction.transaction_hash`
-- under `st.publicKey`
-
-If that check fails, the transaction is rejected.
-
-## 6. Public keys and private keys
-
-### Private key
-
-A secret value only the owner should know.
-Used to create signatures.
-
-### Public key
-
-A shareable value others can use to verify signatures.
-
-Axis defines both types in `common.h`:
-
-- `SecretKey`
-- `PublicKey`
-
-### Important limitation
-
-The current repository defines these types but does not implement a full end-user wallet or key-management workflow.
-
-## 7. Address generation
-
-An address is a shorter identifier derived from a public key.
-
-Axis computes addresses using:
-
-```cpp
-Addr computeAddress(const PublicKey& pk)
+```cmake
+find_package(PkgConfig REQUIRED)
+pkg_check_modules(SODIUM REQUIRED libsodium)
+target_link_libraries(axis_core PRIVATE ${SODIUM_LINK_LIBRARIES})
 ```
 
-This hashes the public key and stores the result in a 20-byte address type.
+## Hashing (Blake2b)
 
-### Why this is useful
-
-- addresses are shorter than public keys,
-- users and systems can refer to ownership using addresses,
-- the node can derive the expected sender address from the submitted public key.
-
-## 8. Sender verification logic
-
-One subtle but important rule exists in `handleCreateTransaction()`.
-
-After deserializing the request, the node checks:
+### API
 
 ```cpp
-computeAddress(signedTransaction.publicKey) == signedTransaction.transaction.sender
+Hash blake2b(std::span<const uint8_t> data);
 ```
 
-### Why this matters
+- **Input:** any byte span
+- **Output:** `Hash` = `std::array<uint8_t, 32>` (256 bits)
+- **Underlying:** `crypto_generichash(out, outlen, in, inlen, NULL, 0)`
 
-Without this rule, a malicious client could claim any sender address while submitting their own public key.
+The null key (last two parameters) means no keyed hashing — this is plain
+Blake2b, not Blake2b-MAC.
 
-This check binds:
+### Where hashing is used
 
-- claimed sender address,
-- actual cryptographic identity.
+| Location | What is hashed | Why |
+|----------|---------------|-----|
+| `Transaction::compute_hash` | All inputs + outputs + timestamp | Create txid |
+| `Block::compute_hash` | 80-byte block header | Create block hash |
+| `compute_block_merkle_root` | Txid pairs | Build Merkle tree |
+| `derive_address` | Public key (32 bytes) → 20 bytes | Create address |
 
-## 9. Security assumptions in Axis
+The Merkle tree hashes use the same `blake2b` function:
 
-The code assumes:
+```cpp
+Hash compute_block_merkle_root(const std::vector<Transaction>& txs) {
+    std::vector<Hash> hashes;
+    for (const auto& tx : txs)
+        hashes.push_back(tx.txid());
+    while (hashes.size() > 1) {
+        // ... pair and hash ...
+        next.push_back(blake2b(w.buf));
+    }
+    return hashes.empty() ? Hash{} : hashes[0];
+}
+```
 
-- libsodium implementations are correct,
-- collision resistance of the chosen hash is strong enough for educational use,
-- private keys are kept secret by whoever constructs transactions,
-- the same transaction content produces the same hash on both client and server.
+### Why Blake2b and not SHA-256?
 
-## 10. What cryptography does not solve by itself
+- Faster than SHA-256 in software (no hardware acceleration needed)
+- Same security level (256-bit output, collision resistance ~2^128)
+- Variable output length: 20 bytes for addresses, 32 bytes for hashes
+- Simpler API than SHA-3
 
-Cryptography helps prove integrity and authorization, but it does not automatically solve:
+## Digital signatures (Ed25519)
 
-- economic policy,
-- network consensus across many peers,
-- denial-of-service protection,
-- storage corruption handling,
-- portability of binary formats.
+Ed25519 is an elliptic-curve signature scheme using Curve25519. It was
+designed by Daniel J. Bernstein.
 
-Those require broader system design.
+### Key properties
 
-## 11. Example mental model
+- **Public key:** 32 bytes
+- **Private key:** 64 bytes (32 bytes seed + 32 bytes derived public key)
+- **Signature:** 64 bytes (32 bytes R + 32 bytes S)
+- **Security level:** ~128 bits
+- **Deterministic:** No randomness needed for signing (unlike ECDSA)
+- **Batch verification:** Multiple signatures can be verified faster than
+  verifying each individually
 
-Suppose Alice wants to spend a UTXO.
+### Key generation
 
-1. She creates a transaction describing the spend.
-2. She hashes the transaction content.
-3. She signs that hash with her private key.
-4. She sends the transaction, her public key, and the signature.
-5. Axis derives Alice’s address from the public key.
-6. Axis checks the inputs belong to that address.
-7. Axis verifies the signature against the transaction hash.
+```cpp
+void generate_keypair(PublicKey& pk, PrivateKey& sk) {
+    crypto_sign_keypair(pk.data(), sk.data());
+}
+```
 
-If those checks succeed, the node accepts the transaction into the mempool.
+The private key in libsodium is actually 64 bytes: the first 32 bytes
+are the seed, the last 32 bytes are the cached public key (for faster
+signing).
 
-## 12. Common beginner mistakes
+### Signing
 
-### Mistake: “The hash proves ownership.”
+```cpp
+Signature sign_msg(const PrivateKey& sk, const Hash& msg) {
+    Signature sig;
+    crypto_sign_detached(sig.data(), NULL, msg.data(), msg.size(), sk.data());
+    return sig;
+}
+```
 
-No. The hash identifies content. The signature proves authorization.
+This produces a **detached** signature (just the 64-byte signature, not
+the message + signature concatenated).
 
-### Mistake: “The address is the same thing as the public key.”
+### Verification
 
-Not in Axis. The address is derived from the public key.
+```cpp
+bool verify_sig(const PublicKey& pk, const Hash& msg, const Signature& sig) {
+    return crypto_sign_verify_detached(
+        sig.data(), msg.data(), msg.size(), pk.data()) == 0;
+}
+```
 
-### Mistake: “If the signature is valid, the transaction is automatically valid.”
+Returns `true` if the signature is valid for the given message under the
+given public key.
 
-No. The node must also verify ownership, input existence, mempool conflicts, and value totals.
+### Deterministic signatures
 
-## 13. Summary
+Ed25519 signatures are deterministic: signing the same message with the same
+key always produces the same signature. This is intentional — it prevents
+randomness failures that could leak the private key.
 
-Cryptography in Axis is intentionally focused and understandable:
+The downside is that anyone who sees two transactions with the same signature
+knows they were signed by the same key. This is not a privacy concern for
+Axis's current use case.
 
-- hashes identify and commit to data,
-- signatures prove authorization,
-- addresses are derived from public keys,
-- Merkle roots summarize transaction sets inside blocks.
+### What is signed?
 
-That is enough to support a meaningful educational blockchain core.
+In Axis, the **txid** is what gets signed. The txid covers all inputs, all
+outputs, and the timestamp. Signing the txid means:
+
+- You cannot change the inputs (amount spent)
+- You cannot change the outputs (where coins go)
+- You cannot change the timestamp
+- You cannot forge a signature without the private key
+
+The wallet then sends a `SignedTransaction`:
+
+```cpp
+struct SignedTransaction {
+    Transaction tx;
+    PublicKey pubkey;
+    Signature sig;
+};
+```
+
+The receiver (a full node) verifies:
+
+1. `derive_address(pubkey) == utxo_owner` — you own what you're spending
+2. `verify_sig(pubkey, tx.txid(), sig)` — you authorized this exact tx
+
+## Address derivation
+
+```cpp
+Address derive_address(const PublicKey& pk) {
+    Address addr{};
+    crypto_generichash(addr.data(), addr.size(),
+                       pk.data(), pk.size(), nullptr, 0);
+    return addr;
+}
+```
+
+A 20-byte Blake2b hash of the public key. This is a **one-way function**:
+you cannot recover the public key from the address. Only when spending do
+you reveal the public key.
+
+## Security model
+
+### What Axis's crypto protects against
+
+| Threat | How it's prevented |
+|--------|-------------------|
+| Spending someone else's coins | Signature verification + address derivation |
+| Changing a transaction after signing | Signature covers the txid |
+| Double-spending | UTXO set tracks spent outputs |
+| Block tampering | Hash chain links each block to previous |
+| Forging a block | Proof of Work (difficulty) |
+
+### What Axis does NOT protect against
+
+| Threat | Why it's not addressed |
+|--------|----------------------|
+| Eavesdropping | Network traffic is unencrypted. A passive attacker can see all transactions before they're confirmed. |
+| Man-in-the-middle | No TLS. An active attacker on the network path can drop or modify packets (but modified packets will fail validation). |
+| Sybil attacks | No peer discovery or identity. |
+| 51% attacks | A single attacker with more hash power than the network can reorganize the chain. |
+| Replay attacks | No per-input sequence number prevents the same signed transaction from being rebroadcast. (Mitigated by mempool dedup.) |
+
+### Why no encryption?
+
+Axis assumes **validation-based security**: every message is independently
+verifiable. An encrypted but invalid transaction is still invalid. An
+unencrypted but valid transaction is still valid. Encryption adds
+complexity without improving consensus security.
+
+True, eavesdroppers can see pending transactions before they're confirmed.
+In production, this would be addressed by encryption at the transport layer
+(TLS or Noise protocol) or by making transactions indistinguishable from
+random data.

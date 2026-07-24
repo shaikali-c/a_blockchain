@@ -1,47 +1,43 @@
-# Axis
+# Axis — Educational C++23 Blockchain Node
 
-Axis is an educational C++23 blockchain-node foundation. It maintains a small
-proof-of-work chain, an unspent-transaction-output (UTXO) set, a transaction
-mempool, LevelDB-backed persistence, and a compact binary TCP protocol.
+Axis is a minimal, clean, C++23 blockchain node that demonstrates how real
+blockchain systems work. It implements a proof-of-work chain, UTXO-based
+transactions, Ed25519 signatures, LevelDB persistence, and a binary TCP
+protocol — all in about 1,000 lines of code.
 
-It is a useful codebase for learning how blockchain data structures,
-serialization, cryptographic signatures, and asynchronous networking fit
-together. It is **not** production-ready cryptocurrency software.
+**This is an educational project, not production cryptocurrency software.**
 
-## What is implemented
+## What it does
 
-- UTXO-based transaction representation and validation.
-- Ed25519 signature verification and public-key-derived addresses via
-  libsodium.
-- Transaction and block serialization/deserialization.
-- Merkle-root calculation and basic block validation helpers.
-- Persistent block and mempool databases using LevelDB.
-- A standalone Asio TCP listener on port `9618`.
-- Binary `GetUTXOs` and `CreateTransaction` messages.
-- CTest regression checks for serialization round trips.
+- Maintains a chain of blocks (each containing transactions)
+- Tracks Unspent Transaction Outputs (UTXO set)
+- Accepts transactions from wallet clients over TCP
+- Validates signatures, ownership, and double-spending
+- Persists blocks and pending transactions in LevelDB
+- Provides a binary wire protocol for wallets
 
-## Important scope limits
+## What it does NOT do (yet)
 
-There is no wallet/key-management UI, miner, HTTP/REST server, peer discovery,
-peer-to-peer synchronization, or public block-acceptance endpoint in the
-current source tree. `verifyBlock()` exists as a helper but no implemented
-network message commits a mined block. Treat this project as a learning and
-extension base, not as a networked currency.
+There is no miner, no peer-to-peer sync, no wallet UI, no REST API. Blocks
+are created only during genesis. `verifyBlock()` exists but is not wired to
+any network message. This is a foundation for learning and extension.
 
-## Build and test
+## Quick start
 
 ### Dependencies
 
-- CMake 3.16 or newer
-- A C++23 compiler
-- standalone Asio headers
-- libsodium 1.0.18 or newer
-- LevelDB
-- nlohmann_json and Crow (currently pulled in by shared project headers)
+- CMake ≥ 3.16
+- C++23 compiler (GCC 14+ or Clang 18+)
+- [libsodium](https://doc.libsodium.org/) ≥ 1.0.18
+- [LevelDB](https://github.com/google/leveldb)
+- [standalone Asio](https://think-async.com/Asio/)
 
-On an Arch-like system, the package names are typically `cmake`, `ninja`,
-`libsodium`, `leveldb`, `asio`, `nlohmann-json`, and `crow`. Exact names vary
-by platform.
+On Arch Linux:
+```bash
+pacman -S cmake ninja libsodium leveldb asio
+```
+
+### Build & test
 
 ```bash
 cmake -S . -B build -DBUILD_TESTING=ON
@@ -49,34 +45,81 @@ cmake --build build --parallel
 ctest --test-dir build --output-on-failure
 ```
 
-Run the node from the repository root so its `blocks/` and `pool/` databases
-are found in the expected relative locations:
+### Run
 
 ```bash
-./build/blockchain_tx
+rm -rf blocks pool   # start fresh (optional)
+./build/axisd
 ```
 
-The process initializes libsodium, opens/creates the two LevelDB directories,
-loads state, creates the genesis block if necessary, and then listens on TCP
-port `9618`.
+Starts a TCP server on port `9618`. Creates a genesis block with 15,000,000
+units sent to address `f45a20e043b01f65638a46831ce79b8fec3f6737` on first run.
 
-## Layout
+## Project structure
 
-```text
-include/axis/       Public project headers, grouped by responsibility
-src/blockchain/     Block, transaction, chain state, and TCP handlers
-src/core/           Shared byte/hex/address helpers and logging
-src/crypto/         Merkle-root implementation
-src/storage/        LevelDB wrapper
-tests/              Serialization regression tests
-docs/               Beginner-friendly design and protocol documentation
-blocks/              Runtime LevelDB chain data (created/updated at runtime)
-pool/                Runtime LevelDB mempool data (created/updated at runtime)
+```
+include/axis/       ── Public headers
+  types.h             Core type aliases, Writer/Reader serializers
+  util.h              Logger, hex conversion
+  crypto.h            Hash, sign, verify, Merkle root
+  tx.h                Transaction, OutPoint, TxOutput
+  block.h             BlockHeader, Block
+  chain.h             Chain (UTXO set, validation, persistence)
+  net.h               TCP server, wire protocol
+
+src/                ── Implementation files (one per header)
+  main.cpp            Entry point
+  chain.cpp           Chain, genesis, UTXO, pool
+  block.cpp           Block serialization
+  tx.cpp              Transaction serialization
+  crypto.cpp          Hashing, signatures, Merkle root
+  net.cpp             TCP server, message handling
+
+tests/              ── Regression tests
+  core_serialization_tests.cpp
+
+blocks/             ── LevelDB database (chain data, created at runtime)
+pool/               ── LevelDB database (mempool data, created at runtime)
 ```
 
-## Start here
+## Architecture in one diagram
 
-Read [Documentation index](docs/README.md), then
-[Getting started](docs/getting_started.md) and
-[Architecture](docs/architecture.md). The exact network bytes are specified in
-[Packet protocol](docs/packet_protocol.md).
+```mermaid
+graph TD
+    A[Wallet / TCP Client] -->|GetUTXOs, CreateTransaction| B(Server)
+    B -->|query UTXO| C(Chain)
+    B -->|add signed tx| C
+    C --> D[(blocks LevelDB)]
+    C --> E[(pool LevelDB)]
+    C --> F[UTXO set in memory]
+    C --> G[pending txs in memory]
+    C --> H[Block chain in memory]
+    C --> I[crypto functions]
+```
+
+## Documentation
+
+Start with [`docs/README.md`](docs/README.md) — it indexes everything.
+
+| Document | What it covers |
+|----------|---------------|
+| [Architecture](docs/architecture.md) | High-level design, modules, data flow |
+| [Blockchain concepts](docs/blockchain.md) | Blockchain explained from zero |
+| [UTXO model](docs/utxo_model.md) | The UTXO accounting model |
+| [Transactions](docs/transaction_lifecycle.md) | Transaction creation through validation |
+| [Blocks](docs/block_lifecycle.md) | Block structure, genesis, chaining |
+| [Serialization](docs/serialization.md) | Binary wire and storage formats |
+| [Packet protocol](docs/packet_protocol.md) | TCP message format and types |
+| [Database](docs/database.md) | LevelDB key/value schemas |
+| [Cryptography](docs/cryptography.md) | Hashing, signing, addresses |
+| [Networking](docs/network.md) | Asio coroutines, connection lifecycle |
+| [Class reference](docs/class_reference.md) | Every class, method, field |
+| [Function reference](docs/function_reference.md) | Every non-trivial function |
+| [Developer guide](docs/developer_guide.md) | How to extend the project |
+| [Design decisions](docs/design_decisions.md) | Why things are the way they are |
+| [FAQ](docs/faq.md) | Common questions |
+| [Glossary](docs/glossary.md) | Every technical term defined |
+
+## License
+
+See the repository for license information (not specified in source).

@@ -1,382 +1,245 @@
-# Design Decisions
+# Design decisions
 
-This document explains important design decisions in Axis, why they were likely made, what alternatives exist, and what tradeoffs they create.
+This document records the rationale behind significant design decisions in
+the Axis codebase. Each entry explains the problem, the chosen solution,
+the alternatives considered, and the reasoning.
 
-## 1. UTXO model instead of account-balance model
+---
 
-### Decision
+## 1. No `Blockchain` god class
 
-Axis tracks value as unspent outputs referenced by inputs.
+**Decision:** Split into `Chain` (business logic), `Block` (data model),
+`Transaction` (data model), `Server` (network), `Writer`/`Reader`
+(serialization).
 
-### Why it was chosen
+**Alternatives:**
+- One `Blockchain` class handling everything (the original design)
 
-The UTXO model is a classic blockchain design and is excellent for teaching transaction validation fundamentals.
+**Reasoning:**
+A 500-line class doing chain logic, networking, validation, storage, and
+mining is hard to understand, test, and modify. By splitting into focused
+classes with clear responsibilities, each piece can be understood in
+isolation. `Chain` is still the largest class (~300 lines) but it only
+does one thing: manage the node state.
 
-### Advantages
+---
 
-- makes ownership validation explicit,
-- naturally supports multiple inputs and change outputs,
-- makes double-spend logic easier to reason about.
+## 2. No database wrapper
 
-### Disadvantages
+**Decision:** Use LevelDB directly with `unique_ptr` for RAII, not a custom
+`DatabaseManager` class.
 
-- more complex than a single balance number,
-- requires UTXO lookup logic and indexing.
+**Alternatives:**
+- A `DatabaseManager` wrapper with `put_block`, `get_block`, etc.
+- An ORM-like abstraction
 
-### Alternative
+**Reasoning:**
+The wrapper adds no value — it was three passthrough methods. LevelDB's API
+is already simple (`Put`, `Get`, `Delete`, `Iterator`). Wrapping it adds
+lines of code without any capability. Direct usage makes it obvious what
+database operations are happening.
 
-An account-based model storing balances directly per address.
+---
 
-### Tradeoff
+## 3. No `common.h` junk drawer
 
-UTXO teaches richer blockchain mechanics at the cost of more bookkeeping.
+**Decision:** Every type lives in a logically named header.
 
-## 2. Singleton `Blockchain`
+**Alternatives:**
+- One `common.h` with all includes, type aliases, and utility functions
 
-### Decision
+**Reasoning:**
+A `common.h` creates unnecessary recompilation dependencies (changing a
+small utility force-recompiles everything) and hides the module structure.
+Each header now includes only what it needs.
 
-Use `Blockchain::getInstance()` for the main service object.
+---
 
-### Why it was chosen
+## 4. UTXO keys as binary `OutPoint` (not hex strings)
 
-Simple startup and one obvious source of truth.
+**Decision:** `unordered_map<OutPoint, TxOutput>` instead of
+`unordered_map<string, TxOutput>`.
 
-### Advantages
+**Alternatives:**
+- Hex string keys: `"abc123...def789:0"` (original design)
+- `map` with custom comparator
 
-- easy access,
-- straightforward lifetime,
-- low boilerplate.
+**Reasoning:**
+The original design converted OutPoints to hex strings for every lookup.
+This allocated strings on each UTXO operation (spending, querying). A
+hex string for a 32-byte hash + index is ~66 bytes per operation. Using
+binary OutPoint keys eliminates all string allocation from UTXO operations.
 
-### Disadvantages
+---
 
-- harder to test in isolation,
-- high coupling,
-- encourages the class to accumulate responsibilities.
+## 5. Explicit typed serialization (not `put(T)` template)
 
-### Alternative
+**Decision:** `Writer::put_u32`, `put_hash`, `put_addr`, etc. instead of
+`Writer::put(T val)`.
 
-Dependency-injected service composition.
+**Alternatives:**
+- Template `put<T>(T val)` that uses `sizeof(T)` and `memcpy`
+- A serialization framework like Boost.Serialization or Cap'n Proto
 
-### Tradeoff
+**Reasoning:**
+The original template `put(T)` worked on most types but silently truncated
+`std::array` types on GCC (because `sizeof(std::array<uint8_t, 32>)` is 32,
+but the template deduced `T` as... actually the issue was that `std::array`
+was passed by value and only 8 bytes were written on some platforms due to
+ABI quirks). Explicit methods guarantee the correct number of bytes are
+written for every type. They also make the wire format obvious from the
+serialization code.
 
-Less infrastructure complexity now, more architectural pressure later.
+---
 
-## 3. One central orchestration class
+## 6. C++20 coroutines (not callback-style Asio)
 
-### Decision
+**Decision:** Use `co_await`/`co_spawn` for network I/O.
 
-Let `Blockchain` manage state, validation, persistence coordination, and networking.
+**Alternatives:**
+- Traditional Asio with completion handlers (callbacks)
+- Thread-per-connection
+- A framework like libuv or libevent
 
-### Why it was chosen
+**Reasoning:**
+Coroutines make asynchronous code read as sequential code. Each session
+looks like "read header → read payload → dispatch → send response" without
+callback nesting. Thread-per-connection would waste memory (stack per
+connection). Callbacks create "callback hell" as complexity grows.
+C++20 coroutines are supported by GCC 14+ and Asio provides built-in
+awaitable support.
 
-Educational readability and fewer files.
+---
 
-### Advantages
+## 7. No virtual dispatch, no inheritance, no templates (except STL)
 
-- easy to trace end-to-end behavior,
-- low conceptual overhead for a small codebase.
+**Decision:** Plain structs and classes. No base classes, no virtual
+methods, no class templates.
 
-### Disadvantages
+**Alternatives:**
+- Abstract base classes for storage backends
+- Template-based serialization
+- Policy-based design
 
-- violates single-responsibility principles,
-- harder to extend cleanly.
+**Reasoning:**
+Axis has exactly one storage backend (LevelDB), one serialization format
+(binary), and one crypto library (libsodium). There is no scenario where
+you'd swap these at runtime or compile time. Virtual dispatch adds vtable
+overhead and makes optimization harder. Templates increase compile time
+and error message complexity. Plain code is simpler and faster.
 
-### Alternative
+---
 
-Separate `Mempool`, `ChainState`, `ProtocolHandler`, and `NodeServer` classes.
+## 8. No pretty printer
 
-## 4. LevelDB for persistence
+**Decision:** Removed the 170-line `PrettyPrinter` class that drew ASCII
+trees.
 
-### Decision
+**Alternatives:**
+- Keep it as a debug-only utility
 
-Use LevelDB key/value stores for blocks and mempool data.
+**Reasoning:**
+170 lines for a feature that is never called from production code is dead
+weight. The tree images it drew were not useful for debugging (you need
+a debugger, not ASCII art). If visual inspection is needed, format the
+data with standard tools (e.g., `hash_to_hex` + `printf`).
 
-### Why it was chosen
+---
 
-Embedded, lightweight, simple API, good fit for serialized binary blobs.
+## 9. Static difficulty (no retargeting)
 
-### Advantages
+**Decision:** Difficulty is a hardcoded value of 3.
 
-- no external DB server,
-- ordered iteration useful for blocks,
-- small wrapper code.
+**Alternatives:**
+- Bitcoin-style retargeting every N blocks
+- Dynamic difficulty based on hash rate
 
-### Disadvantages
+**Reasoning:**
+Axis is a demonstration/educational blockchain with no mining hardware
+participating. Difficulty retargeting adds complexity (storing per-block
+timestamps, computing averages) with no benefit. If real mining is added,
+retargeting is the obvious change.
 
-- no relational querying,
-- no rich schema management,
-- no multi-record transaction semantics at application level by default.
+---
 
-### Alternative
+## 10. LevelDB (not SQLite or custom file format)
 
-SQLite, RocksDB, or custom flat files.
+**Decision:** LevelDB as the storage engine.
 
-## 5. Store blocks as serialized blobs keyed by padded height
+**Alternatives:**
+- SQLite (full SQL database)
+- Custom file format (raw files per block)
+- No persistence (in-memory only)
 
-### Decision
+**Reasoning:**
+LevelDB is fast (no SQL parsing, no query planning), embedded (no server),
+and supports ordered iteration (critical for block height enumeration).
+SQLite would be more flexible for ad-hoc queries but adds a dependency
+with more surface area. A custom file format would require implementing
+crash recovery, compaction, and key lookup — all of which LevelDB provides.
 
-Persist each block under a zero-padded numeric string key.
+---
 
-### Why it was chosen
+## 11. No UTXO index by address
 
-This preserves natural ordering during iteration.
+**Decision:** `get_utxos` scans the entire UTXO set.
 
-### Advantages
+**Alternatives:**
+- Maintain a `multimap<Address, OutPoint>` as a secondary index
 
-- simple recovery logic,
-- no separate height index required.
+**Reasoning:**
+With a single genesis UTXO, there is nothing to index. Adding a secondary
+index doubles the bookkeeping (insert on apply, delete on spend) and memory
+usage. When the UTXO set grows (millions of entries), a secondary index
+becomes necessary. The current design makes this easy to add: maintain a
+parallel `unordered_multimap<Address, OutPoint>` updated in `apply_tx`.
 
-### Disadvantages
+---
 
-- block lookup by hash still needs in-memory indexing,
-- chain reorganization support would be more complex later.
+## 12. Single I/O thread
 
-## 6. Rebuild UTXO state by replaying blocks
+**Decision:** One `asio::io_context` running on one thread.
 
-### Decision
+**Alternatives:**
+- Thread pool for the io_context
+- Separate thread for validation
 
-Do not persist a dedicated UTXO database in the current implementation.
+**Reasoning:**
+Currently, CPU work (validation, serialization) is done on the I/O thread,
+which blocks all other connections during processing. This is fine for the
+current scale (single user, small chain). For production, validation should
+be offloaded to a thread pool, or `asio::io_context` should use multiple
+threads.
 
-### Why it was chosen
+---
 
-Simplifies consistency: the chain database is treated as canonical history.
+## 13. No config file or command-line argument parsing
 
-### Advantages
+**Decision:** Hardcoded port (8080) and data directory (`./axis_data/`).
 
-- simpler persistence model,
-- fewer moving parts,
-- easier conceptual correctness.
+**Alternatives:**
+- argparse or getopt
+- TOML/YAML config file
+- Environment variables
 
-### Disadvantages
+**Reasoning:**
+Adding argument parsing would add ~30 lines for the parser plus the
+plumbing to pass values through constructors. With exactly one argument
+(`--help`), this is not justified. When more configurability is needed (port,
+data dir, network parameters), add a simple option parser.
 
-- slower startup as history grows,
-- no fast recovery shortcut.
+---
 
-### Alternative
+## 14. No peer-to-peer networking
 
-Persist a materialized UTXO index and checkpoint it.
+**Decision:** Axis runs as a standalone node accepting wallet connections.
 
-## 7. Persist the mempool
+**Alternatives:**
+- Full P2P network with peer discovery, handshake, and block relay
+- Bitcoin wire protocol compatibility
 
-### Decision
-
-Store pending transactions in `pool/` and reload them on startup.
-
-### Why it was chosen
-
-Prevents losing user-submitted pending transactions after restart.
-
-### Advantages
-
-- more durable node behavior,
-- preserves pending-work context.
-
-### Disadvantages
-
-- requires re-reserving inputs on startup,
-- needs cleanup once block inclusion exists.
-
-## 8. Manual binary serialization
-
-### Decision
-
-Use custom byte layouts with `BytesWriter`, `BytesReader`, and `memcpy`.
-
-### Why it was chosen
-
-Simple, compact, and educational.
-
-### Advantages
-
-- small code,
-- efficient encoding,
-- easy to inspect field ordering in source.
-
-### Disadvantages
-
-- poor long-term compatibility story,
-- native-layout dependence,
-- more risk of subtle parsing bugs.
-
-### Alternatives
-
-- protobuf,
-- flatbuffers,
-- CBOR,
-- explicit endian-aware custom codec.
-
-## 9. Native integer layout and `size_t` in formats
-
-### Decision
-
-Write integers as their in-memory bytes, including `size_t` in block serialization.
-
-### Why it may have been chosen
-
-Convenience and minimal code.
-
-### Advantages
-
-- easy implementation,
-- no conversion helpers required.
-
-### Disadvantages
-
-- not architecture portable,
-- risky for stable wire protocols or cross-platform persistence.
-
-### Recommended future alternative
-
-Fixed-width integer encoding with explicit endianness.
-
-## 10. Use libsodium
-
-### Decision
-
-Depend on libsodium for hashing and signature verification.
-
-### Why it was chosen
-
-Well-known modern crypto library with safe APIs.
-
-### Advantages
-
-- avoids hand-rolled cryptography,
-- provides Ed25519 and hashing primitives.
-
-### Disadvantages
-
-- external dependency,
-- current code still needs wallet/key-generation logic around it.
-
-## 11. Derive addresses from public-key hash
-
-### Decision
-
-Compute a 20-byte address by hashing the public key.
-
-### Why it was chosen
-
-Shorter identifier than the full public key.
-
-### Advantages
-
-- compact owner representation,
-- easy sender/public-key consistency checks.
-
-### Disadvantages
-
-- custom address format with no checksum or human encoding,
-- not directly user-friendly.
-
-## 12. Reserve mempool inputs separately
-
-### Decision
-
-Maintain `mempoolInputs` to track inputs already used by pending transactions.
-
-### Why it was chosen
-
-The UTXO set alone cannot stop two unconfirmed transactions from spending the same output.
-
-### Advantages
-
-- simple pending double-spend prevention,
-- fast conflict detection.
-
-### Disadvantages
-
-- extra state to maintain,
-- requires cleanup when transactions are confirmed or dropped.
-
-## 13. Hardcoded genesis block
-
-### Decision
-
-Bake genesis values directly into code.
-
-### Why it was chosen
-
-Every blockchain needs a shared origin.
-
-### Advantages
-
-- deterministic startup,
-- no separate genesis file required.
-
-### Disadvantages
-
-- inflexible,
-- changing it breaks compatibility with existing data.
-
-## 14. Async TCP with coroutines
-
-### Decision
-
-Use Asio async I/O and `co_await` instead of blocking sockets.
-
-### Why it was chosen
-
-Modern C++ async style with readable control flow.
-
-### Advantages
-
-- scalable structure,
-- cleaner than nested callbacks.
-
-### Disadvantages
-
-- still embedded inside `Blockchain`,
-- current implementation only processes one message per accepted connection.
-
-## 15. Verify block transactions by mempool membership
-
-### Decision
-
-`verifyBlock()` assumes non-coinbase transactions are already validated if they exist in the mempool.
-
-### Why it was chosen
-
-Avoids redoing the full validation path.
-
-### Advantages
-n
-- simpler logic,
-- reuses mempool as a validation gate.
-
-### Disadvantages
-
-- assumes mempool is trustworthy and still in sync,
-- insufficient for full independent block validation in a more realistic multi-peer environment.
-
-## 16. Minimal logger
-
-### Decision
-
-Use plain stdout logging functions.
-
-### Why it was chosen
-
-Smallest possible logging layer.
-
-### Advantages
-
-- trivial to understand,
-- no dependency or configuration burden.
-
-### Disadvantages
-
-- no timestamps,
-- no structured fields,
-- no filtering or persistence.
-
-## 17. Summary
-
-Axis makes many decisions that are very reasonable for an educational blockchain core:
-
-- prefer clarity over abstraction,
-- prefer explicit state over hidden machinery,
-- prefer simple persistence over advanced indexing,
-- prefer compact custom bytes over framework-heavy protocols.
-
-Those choices make the code approachable, while also defining the exact places future maintainers will want to strengthen as the project grows.
+**Reasoning:**
+A P2P layer requires peer discovery, connection management, inventory relay,
+block relay, and transaction relay — easily doubling the codebase. The
+current architecture makes Axis testable and useful for development. P2P
+can be added as a separate module (`src/p2p.cpp`) that depends on `Chain`.

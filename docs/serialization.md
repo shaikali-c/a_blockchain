@@ -1,295 +1,192 @@
-# Serialization
+# Serialization format
 
-Serialization is the process of converting in-memory objects into bytes so they can be stored or sent over the network.
+This document describes how each data type is serialized to bytes for
+storage (LevelDB) and network transmission. Axis uses a custom binary
+serialization with `Writer` (encoding) and `Reader` (decoding).
 
-Axis relies heavily on manual binary serialization.
+## Design principles
 
-## 1. Why serialization is needed
+1. **Explicit typed methods**: Unlike the old `Writer::put(T val)` template
+   (which truncated arrays on GCC), every serialization method is explicit
+   about its type: `put_u8`, `put_u32`, `put_u64`, `put_hash`, `put_addr`,
+   `put_pk`, `put_sig`.
 
-Axis uses serialization in three major places:
+2. **Little-endian by default**: Multi-byte integers use little-endian
+   encoding. Network header `payload_length` is a special exception (big-endian).
 
-1. storing `Transaction` objects in LevelDB,
-2. storing `Block` objects in LevelDB,
-3. sending and receiving protocol packets over TCP.
+3. **Compact but deterministic**: The format is not self-describing. Both
+   Writer and Reader must agree on structure.
 
-Without serialization, C++ objects could not be safely persisted or transmitted as raw structured data.
+## Writer
 
-## 2. Axis approach
+```cpp
+struct Writer {
+    std::vector<uint8_t> buf;  // grows as data is appended
 
-Axis uses a lightweight custom binary format rather than JSON, protobuf, or another external encoding system.
-
-### Benefits
-
-- compact,
-- fast,
-- simple to implement,
-- no additional runtime encoding dependency.
-
-### Costs
-
-- easier to get wrong,
-- harder to evolve compatibly,
-- requires exact agreement on field order and native integer layout.
-
-## 3. Core helper types
-
-Defined in `axis/include/axis/core/common.h`.
-
-## `BytesWriter`
-
-Used to append bytes into a growing buffer.
-
-### Main methods
-
-- `writeBytes(...)`: append a container or array of bytes,
-- `writeValues(T value)`: append a trivially copyable value by copying its raw memory bytes.
-
-## `BytesReader`
-
-Used to read fields from a byte string in order.
-
-### Main methods
-
-- `readBytes<T>()` for trivially copyable types,
-- `readBytes<S>()` for fixed-size byte arrays,
-- `readBytesString(size_t size)` for raw string slices,
-- `require(size_t)` to enforce bounds.
-
-## 4. Endianness assumptions
-
-This is one of the most important topics for maintainers.
-
-### What the code does
-
-For integers like `uint32_t`, `uint64_t`, and even `size_t`, Axis copies raw in-memory bytes directly with `memcpy` or byte iteration.
-
-### What that implies
-
-The serialized layout depends on:
-
-- machine endianness,
-- machine type sizes,
-- ABI details for types like `size_t`.
-
-### Practical consequence
-
-Axis serialization is safest when:
-
-- writer and reader use the same architecture family,
-- compiler/platform assumptions match.
-
-### Important risk
-
-This format is **not a portable, versioned wire standard**.
-
-For example:
-
-- `uint64_t` byte order is not explicitly normalized,
-- `size_t` may differ between 32-bit and 64-bit systems.
-
-If the project grows into a multi-platform network, this should be refactored.
-
-## 5. Why `memcpy` is used
-
-The code uses `memcpy` because it is a straightforward way to copy raw bytes of trivially copyable values into or out of buffers.
-
-### Benefits
-
-- fast,
-- simple,
-- avoids undefined behavior from type punning through incompatible references.
-
-### Tradeoff
-
-It still preserves native representation rather than enforcing a canonical external format.
-
-## 6. Packet framing format
-
-A network packet is serialized as:
-
-```text
-[size: uint32_t][payloadType: uint16_t][payload bytes...]
+    void put_u8(uint8_t v);
+    void put_u16(uint16_t v);   // little-endian
+    void put_u32(uint32_t v);   // little-endian
+    void put_u64(uint64_t v);   // little-endian
+    void put_u32_be(uint32_t v); // big-endian (for network header)
+    void put_varint(uint64_t v);
+    void put_hash(const Hash& h);   // hash.data(), 32 bytes
+    void put_addr(const Address& a); // addr.data(), 20 bytes
+    void put_pk(const PublicKey& pk); // pk.data(), 32 bytes
+    void put_sig(const Signature& sig); // sig.data(), 64 bytes
+    void put_bytes(std::span<const uint8_t> data); // raw bytes
+};
 ```
 
-Where:
+### Method reference
 
-- `size` is the byte length of `payloadType + payload`,
-- `payloadType` is a `PayloadType` enum value,
-- `payload` is message-specific content.
+| Method | Appends | Use case |
+|--------|---------|----------|
+| `put_u8` | 1 byte | Small counters, flags |
+| `put_u16` | 2 bytes LE | String lengths, small ranges |
+| `put_u32` | 4 bytes LE | Counts, indices |
+| `put_u64` | 8 bytes LE | Timestamps, amounts |
+| `put_u32_be` | 4 bytes BE | Network payload length header |
+| `put_varint` | 1–9 bytes | Compact variable-length integer |
+| `put_hash` | 32 bytes | txid, block hash, Merkle root |
+| `put_addr` | 20 bytes | Addresses |
+| `put_pk` | 32 bytes | Ed25519 public keys |
+| `put_sig` | 64 bytes | Ed25519 signatures |
+| `put_bytes` | N bytes | Raw data passthrough |
 
-This is implemented by `Packet::getPacket()`.
+## Reader
 
-## 7. `Transaction` binary layout
+```cpp
+struct Reader {
+    std::span<const uint8_t> buf;  // the data to read
+    size_t offset = 0;              // current read position
 
-Serialized by `Transaction::serializeTransaction()`.
-
-Layout:
-
-```text
-[sender: 20]
-[receiver: 20]
-[inputCount: uint32_t]
-[inputs...]
-[outputCount: uint32_t]
-[outputs...]
-[coins: uint64_t]
-[timestamp: uint64_t]
+    uint8_t     take_u8();
+    uint16_t    take_u16();    // little-endian
+    uint32_t    take_u32();    // little-endian
+    uint64_t    take_u64();    // little-endian
+    uint32_t    take_u32_be(); // big-endian
+    uint64_t    take_varint();
+    Hash        take_hash();   // 32 bytes
+    Address     take_addr();   // 20 bytes
+    PublicKey   take_pk();     // 32 bytes
+    Signature   take_sig();    // 64 bytes
+    std::span<const uint8_t> take_bytes(size_t n); // raw bytes
+};
 ```
 
-Each input is:
+Reader advances `offset` after each read. If `offset + size > buf.size()`,
+the behavior is undefined (the caller must ensure sufficient data).
 
-```text
-[transaction_hash: 32][output_index: uint32_t]
+## Composite types
+
+### Hash
+
+```
+[data (32 bytes)]
 ```
 
-Each output is:
+Stored and transmitted as raw binary (not hex). 32 bytes total.
 
-```text
-[owner: 20][coins: uint64_t]
+### Address
+
+```
+[data (20 bytes)]
 ```
 
-### Important note
+A 20-byte Blake2b hash of a public key. 20 bytes total.
 
-`transaction_hash` itself is **not** stored in the serialized transaction body. It is recomputed during deserialization from the restored fields.
+### OutPoint
 
-That is good design, because it avoids trusting a transmitted hash field that might not match the contents.
-
-## 8. `Block` binary layout
-
-Serialized by `Block::serialize()`.
-
-Layout:
-
-```text
-[previous_hash: 32]
-[hash: 32]
-[merkleRoot: 32]
-[nonce: uint64_t]
-[timestamp: uint64_t]
-[transactionCount: size_t]
-repeat transactionCount times:
-    [transactionDataSize: size_t]
-    [transactionBytes: variable]
+```
+[txid (32 bytes)] [index (4 bytes LE)]
 ```
 
-### Important portability warning
+36 bytes total.
 
-Using `size_t` in stored block format ties the format to platform word size.
+### TxOutput
 
-## 9. `CreateTransaction` request layout
-
-Parsed by `Blockchain::deserializeCreateTransactionRequest()`.
-
-Layout:
-
-```text
-[publicKey: crypto_sign_PUBLICKEYBYTES]
-[sender: 20]
-[receiver: 20]
-[amount: uint64_t]
-[timestamp: uint64_t]
-[inputCount: uint32_t]
-[inputs...]
-[outputCount: uint32_t]
-[outputs...]
-[signature: crypto_sign_BYTES]
+```
+[recipient (20 bytes)] [amount (8 bytes LE)]
 ```
 
-### Why timestamp is included
+28 bytes total.
 
-The transaction hash depends on the timestamp. Both client and server must hash the exact same content.
+### Transaction
 
-## 10. `UTXOsResponse` layout
-
-Built by `Blockchain::serializeUtxosResponse()`.
-
-Layout:
-
-```text
-[inputCount: uint32_t]
-repeat inputCount times:
-    [transaction_hash: 32]
-    [output_index: uint32_t]
-[totalCoins: uint64_t]
+```
+[txid (32 bytes)]
+[input_count (4 bytes LE)]
+[inputs... (count * 36 bytes)]
+[output_count (4 bytes LE)]
+[outputs... (count * 28 bytes)]
+[timestamp (8 bytes LE)]
 ```
 
-This response gives the client references to spendable outputs and the summed value.
+The `txid` is included in the serialization so the reader knows the
+transaction hash without recomputing it.
 
-## 11. `TransactionResponse` layout
+### SignedTransaction
 
-Built by `Blockchain::serializeTransactionResponse()`.
-
-Layout:
-
-```text
-[accepted: uint8_t]
-[errorCode: uint8_t]
-[reasonLength: uint16_t]
-[reasonBytes: variable]
+```
+[public_key (32 bytes)]
+[ts = timestamp (8 bytes LE)]
+[input_count (4 bytes LE)]
+[inputs... (count * 36 bytes)]
+[output_count (4 bytes LE)]
+[outputs... (count * 28 bytes)]
+[signature (64 bytes)]
 ```
 
-## 12. Defensive parsing behavior
+Note: `SignedTransaction` does NOT store the txid separately — the receiver
+derives the address from `public_key`, reconstructs the `Transaction`
+object, and verifies the signature.
 
-Axis includes several useful parsing checks.
+### Block (header + body)
 
-### In `BytesReader`
-
-- bounds checks via `require()`.
-
-### In transaction deserialization
-
-- rejects impossible input counts,
-- rejects impossible output counts.
-
-### In create-transaction request parsing
-
-- validates there is enough trailing space for required fields,
-- rejects trailing extra bytes.
-
-### In packet parsing
-
-- rejects frames smaller than a payload type.
-
-These checks reduce the chance of silent memory misuse.
-
-## 13. Example transaction serialization
-
-Suppose a transaction contains:
-
-- sender address: 20 bytes,
-- receiver address: 20 bytes,
-- 1 input,
-- 2 outputs,
-- amount: 42,
-- timestamp: 123456789.
-
-The byte layout would conceptually be:
-
-```text
-20 bytes sender
-20 bytes receiver
-4 bytes input count = 1
-32 bytes input tx hash
-4 bytes input output index
-4 bytes output count = 2
-20 bytes output0 owner
-8 bytes output0 coins
-20 bytes output1 owner
-8 bytes output1 coins
-8 bytes coins = 42
-8 bytes timestamp = 123456789
+```
+[prev_hash (32 bytes)]
+[merkle_root (32 bytes)]
+[timestamp (8 bytes LE)]
+[nonce (4 bytes LE)]
+[version (4 bytes LE)]
+[tx_count (4 bytes LE)]
+[transactions... (count * variable)]
 ```
 
-## 14. Compatibility recommendations for future work
+The block hash is NOT stored in the serialization — it is computed on
+deserialization by hashing the header (first 80 bytes).
 
-If you extend Axis seriously, consider these improvements:
+## Block hash computation
 
-1. use explicit little-endian or big-endian encoding helpers,
-2. replace `size_t` in on-disk/wire formats with fixed-width integers,
-3. version the packet and block formats,
-4. add golden-byte serialization tests,
-5. define maximum allowed counts and message sizes.
+The block hash is: `blake2b(header_bytes)` where header_bytes are:
 
-## 15. Summary
+```
+[prev_hash (32)] [merkle_root (32)] [timestamp (8)] [nonce (4)] [version (4)]
+```
 
-Serialization in Axis is simple and efficient, but it depends on native machine layout in several places. It works well as an educational in-process and same-platform design, but it should be hardened before being treated as a stable cross-platform protocol.
+Total header size: **80 bytes**. The hash is 32 bytes.
+
+## Storage format (LevelDB)
+
+LevelDB is a key-value store. Keys and values are byte strings.
+
+### Blocks database (`blocks/` directory)
+
+| Key | Value | Description |
+|-----|-------|-------------|
+| `[-1 (1 byte)] [0x00 (1 byte)]` | `tip_hash` (32 bytes) | Chain tip hash |
+| `[-2 (1 byte)]` | `height` (8 bytes LE) | Chain height |
+| `[height (8 bytes BE)]` | Serialized Block | Block at that height |
+
+Block height is stored as **big-endian** so that LevelDB iteration returns
+blocks in order (height 0, 1, 2, ...). The sentinel keys use negative-first-
+byte so that the chain metadata sorts before any block.
+
+### Mempool database (`pool/` directory)
+
+| Key | Value | Description |
+|-----|-------|-------------|
+| `[txid (32 bytes)]` | Serialized Transaction | A pending transaction |
+
+The mempool database is a simple flat map of txid → transaction. On startup,
+all entries are loaded into memory.

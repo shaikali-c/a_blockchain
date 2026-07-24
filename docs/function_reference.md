@@ -1,1029 +1,595 @@
-# Function Reference
+# Function reference
 
-This document explains every non-trivial function in the visible Axis source tree.
+Complete reference for every free function in the Axis codebase.
 
-To keep the reference readable, trivial one-line constructors and very small logging wrappers are grouped where appropriate.
+## `types.h`
 
----
+### `operator==` / `operator!=` (OutPoint)
 
-# `axis/src/main.cpp`
+```cpp
+bool operator==(const OutPoint& a, const OutPoint& b);
+bool operator!=(const OutPoint& a, const OutPoint& b);
+```
 
-## `int main()`
+Compares both `txid` and `index`. Required by `std::unordered_map`.
 
-### What it does
+### `std::hash<OutPoint>`
 
-Program entry point.
+```cpp
+template<> struct std::hash<OutPoint> {
+    size_t operator()(const OutPoint& op) const noexcept;
+};
+```
 
-### Why it exists
-
-Starts the node process.
-
-### When it is called
-
-By the operating system when the executable launches.
-
-### Who calls it
-
-The OS / runtime loader.
-
-### Behavior
-
-1. calls `sodium_init()`,
-2. logs error if libsodium initialization fails,
-3. obtains `Blockchain::getInstance()`,
-4. calls `setupConnection()`,
-5. catches any exception and logs a generic initialization failure,
-6. waits on `std::cin.get()` before returning.
-
-### Side effects
-
-- initializes global crypto library state,
-- may start TCP server and event loop,
-- reads from standard input before exit.
-
-### Common pitfalls
-
-- broad `catch(...)` loses failure detail,
-- `std::cin.get()` means the process intentionally waits for console input before exiting.
+Hashes all 36 bytes of the OutPoint (32 + 4) using a bit-mixing approach:
+XOR of the first 8 bytes of txid plus the index.
 
 ---
 
-# `axis/src/blockchain/transaction.cpp`
+## `util.h`
 
-## `std::string Input::getUTXOKey() const`
+### `time_since_epoch`
 
-### What it does
+```cpp
+uint64_t time_since_epoch();
+```
 
-Formats an input reference as `<txHashHex>:<output_index>`.
+Returns the current Unix timestamp in seconds. Wraps
+`std::chrono::system_clock::now().time_since_epoch()`.
 
-### Why it exists
+### `hash_to_hex`
 
-The UTXO map uses string keys, so inputs need a stable mapping format.
+```cpp
+std::string hash_to_hex(const Hash& h);
+```
 
-### Called by
-
-- `Blockchain::verifyInputs()`
-- `Blockchain::updateUTXO()`
-- mempool reservation logic
-
-### Return value
-
-UTXO key string.
-
-### Complexity
-
-O(1) relative to project data size.
-
-### Pitfalls
-
-Relies on a text format rather than a binary composite key.
-
-## `Input::Input(const std::string& utxoKey)`
-
-### What it does
-
-Parses a text UTXO key into structured `transaction_hash` and `output_index` fields.
-
-### Why it exists
-
-Used when the node needs to rebuild input references from UTXO map keys, especially in address query responses.
-
-### Called by
-
-- `Blockchain::findAddressUtxos()`
-
-### Error handling
-
-Throws if the key format is invalid.
-
-## `bool Input::operator==(const Input& in) const`
-
-### What it does
-
-Compares transaction hash and output index.
-
-### Why it exists
-
-Used by tests and logical equality checks.
-
-## `std::string Input::serialize() const`
-
-### What it does
-
-Serializes the input as transaction hash bytes followed by output index bytes.
-
-### Why it exists
-
-Allows inputs to be embedded in serialized transactions.
-
-## `std::string UTXO::serialize() const`
-
-### What it does
-
-Serializes owner address and coin amount.
-
-### Why it exists
-
-Allows outputs to be embedded in serialized transactions.
-
-## `Transaction::Transaction(const std::string& rawBytes)`
-
-### What it does
-
-Constructs a transaction by deserializing raw bytes.
-
-### Why it exists
-
-Used for loading transactions from LevelDB or block contents.
-
-### Called by
-
-- `Blockchain::loadPoolTransactions()`
-- `Block::Block(std::string_view)`
-- tests
-
-## `Transaction::Transaction(const Addr& miner, uint64_t c, std::vector<UTXO> o)`
-
-### What it does
-
-Builds a coinbase-like transaction with zero sender and no inputs.
-
-### Why it exists
-
-Supports miner/genesis reward style transactions.
-
-### Side effects
-
-Computes the transaction hash immediately.
-
-## `Transaction::Transaction(const Addr& s, const Addr& r, uint64_t c, std::vector<Input> i, std::vector<UTXO> o)`
-
-### What it does
-
-Builds a normal transaction and computes its hash using the current system time.
-
-### Why it exists
-
-Convenient constructor for locally created transactions.
-
-### Pitfalls
-
-Hash depends on the exact timestamp chosen at construction time.
-
-## `Transaction::Transaction(..., uint64_t t)`
-
-### What it does
-
-Builds a transaction with an explicit timestamp and computes a deterministic hash from that timestamp.
-
-### Why it exists
-
-Necessary when reconstructing a transaction from wire or stored bytes.
-
-## `void Transaction::computeTransactionHash()`
-
-### What it does
-
-Sets `timestamp` to current epoch seconds and delegates to the timestamped overload.
-
-### Why it exists
-
-Provides automatic timestamp assignment for newly created transactions.
-
-### Side effects
-
-Mutates `timestamp` and `transaction_hash`.
-
-### Thread safety
-
-Safe only under normal value-object use; no internal locking.
-
-## `void Transaction::computeTransactionHash(uint64_t t)`
-
-### What it does
-
-Hashes canonical transaction content using the provided timestamp.
-
-### Why it exists
-
-Makes transaction identity deterministic when timestamp is already known.
-
-### Called by
-
-- constructors
-- `deserializeTransaction()`
-
-### Parameters
-
-- `t`: timestamp to set and include in the hash.
-
-### Side effects
-
-Mutates `timestamp` and `transaction_hash`.
-
-### Complexity
-
-O(number of inputs + number of outputs).
-
-### Example execution
-
-For each input, append hash and index. For each output, append owner and coins. Then append `coins` and `timestamp`, hash the full buffer.
-
-### Common pitfalls
-
-Any field ordering change changes transaction identity and breaks signature compatibility.
-
-## `std::string Transaction::serializeTransaction() const`
-
-### What it does
-
-Serializes a transaction into raw bytes.
-
-### Why it exists
-
-Needed for DB persistence and block embedding.
-
-### Return value
-
-Binary string representation of the transaction.
-
-### Complexity
-
-O(number of inputs + number of outputs).
-
-## `void Transaction::deserializeTransaction(const std::string& buffer)`
-
-### What it does
-
-Parses a transaction from raw bytes and recomputes its hash.
-
-### Why it exists
-
-Allows safe reconstruction without trusting an externally supplied hash.
-
-### Error handling
-
-Throws on invalid counts or truncated data.
-
-### Side effects
-
-Mutates all transaction fields, reserves vectors, computes hash.
-
-### Pitfalls
-
-Uses native integer layout assumptions through `BytesReader`.
+Converts a 32-byte hash to a 64-character hex string (lowercase, no `0x`
+prefix). Used for debug output only — never in serialization or UTXO keys.
 
 ---
 
-# `axis/src/blockchain/block.cpp`
+## `crypto.h`
 
-## `Block::Block(const Hash& ph, const Hash& bh, uint64_t t, uint64_t n, const std::vector<Transaction>& txs)`
+### `blake2b`
 
-### What it does
+```cpp
+Hash blake2b(std::span<const uint8_t> data);
+```
 
-Constructs a block from supplied header fields and transactions, then computes the Merkle root.
+Computes the Blake2b-256 hash of arbitrary data. Used for txids, block
+hashes, Merkle tree nodes, and address derivation.
 
-### Why it exists
+### `generate_keypair`
 
-Creates block objects from already prepared data.
+```cpp
+void generate_keypair(PublicKey& pk, PrivateKey& sk);
+```
 
-### Parameters
+Generates a new Ed25519 key pair. Calls `crypto_sign_keypair`.
 
-- `ph`: previous block hash
-- `bh`: block hash
-- `t`: timestamp
-- `n`: nonce
-- `txs`: block transactions
+- `pk` — output, 32 bytes
+- `sk` — output, 64 bytes (libsodium format: 32 seed + 32 cached public key)
 
-### Side effects
+### `sign_msg`
 
-Sets `blockHeader.merkleRoot`.
+```cpp
+Signature sign_msg(const PrivateKey& sk, const Hash& msg);
+```
 
-### Complexity
+Signs a message hash with a private key using Ed25519.
 
-O(number of transactions) plus Merkle computation cost.
+- `sk` — Ed25519 private key (64 bytes)
+- `msg` — the 32-byte hash to sign (typically a txid)
+- Returns: 64-byte detached signature
 
-## `Block::Block(std::string_view rawBytes)`
+### `verify_sig`
 
-### What it does
+```cpp
+bool verify_sig(const PublicKey& pk, const Hash& msg, const Signature& sig);
+```
 
-Deserializes a block from raw bytes.
+Verifies an Ed25519 signature.
 
-### Why it exists
+- Returns: `true` if the signature is valid, `false` otherwise
+- Uses `crypto_sign_verify_detached`
 
-Used for loading persisted blocks.
+### `derive_address`
 
-### Error handling
+```cpp
+Address derive_address(const PublicKey& pk);
+```
 
-Throws on invalid counts or insufficient bytes.
+Derives a 20-byte address from a 32-byte public key.
 
-### Pitfalls
-
-Uses `size_t` from the serialized stream, so portability is limited.
-
-## `std::string Block::serialize() const`
-
-### What it does
-
-Serializes the block and all embedded transactions.
-
-### Why it exists
-
-Needed for block persistence.
-
-### Complexity
-
-O(number of transactions + total serialized transaction bytes).
+- Uses `crypto_generichash` with output length = 20 bytes
+- Used to check UTXO ownership: `derive_address(pubkey) == utxo.recipient`
 
 ---
 
-# `axis/src/core/common.cpp`
+## `tx.cpp`
 
-## `Addr computeAddress(const PublicKey& pk)`
+### `Transaction::serialize`
 
-### What it does
+```cpp
+std::vector<uint8_t> Transaction::serialize() const;
+```
 
-Hashes a public key into a 20-byte address.
+Serializes the transaction to bytes. Format:
 
-### Why it exists
+```
+[txid (32)] [input_count (4 LE)] [inputs...] [output_count (4 LE)] [outputs...] [timestamp (8 LE)]
+```
 
-Provides a compact owner identifier derived from cryptographic identity.
+### `Transaction::Transaction(span)`
 
-### Called by
+```cpp
+Transaction::Transaction(std::span<const uint8_t> data);
+```
 
-- `Blockchain::verifyInputs()`
-- `Blockchain::handleCreateTransaction()`
+Deserializes a transaction from bytes. Recomputes the txid from parsed
+data (in case the stored txid is stale).
 
-### Return value
+### `SignedTransaction::serialize`
 
-Derived address.
+```cpp
+std::vector<uint8_t> SignedTransaction::serialize() const;
+```
 
-## `void appendBytes(std::string& buffer, const void* data, size_t size)`
+Serializes a signed transaction. Format:
 
-### What it does
+```
+[pubkey (32)] [timestamp (8 LE)] [input_count (4 LE)] [inputs...] [output_count (4 LE)] [outputs...] [signature (64)]
+```
 
-Appends raw bytes to a string.
+Note: the txid is NOT included. The receiver must recompute it.
 
-### Why it exists
+### `SignedTransaction::SignedTransaction(span)`
 
-General-purpose helper, though it is not central to the current main flows.
+```cpp
+SignedTransaction::SignedTransaction(std::span<const uint8_t> data);
+```
 
-## `Hash hashBytesVector(const std::vector<unsigned char>& bytes)`
-
-### What it does
-
-Hashes a vector of bytes into a `Hash`.
-
-### Why it exists
-
-Used by transaction hashing code.
-
-## `UTXOKey parseUTXOKey(const std::string& key)`
-
-### What it does
-
-Parses a text key of the form `<hashHex>:<index>`.
-
-### Why it exists
-
-Allows string-based UTXO identifiers to be converted back into structured references.
-
-### Error handling
-
-Throws if the key is malformed.
-
-### Pitfalls
-
-Uses `std::stoul`; extremely large indices or malformed strings throw.
+Deserializes a signed transaction. Parses pubkey, timestamp, inputs,
+outputs, and signature. The Transaction is constructed from the parsed
+components (which computes its txid).
 
 ---
 
-# `axis/src/crypto/cryptography.cpp`
+## `block.cpp`
 
-## `Hash Cryptography::computeMerkleRoot(const std::vector<Hash>& transactions)`
+### `Block::Block(prev_hash, txs, timestamp, nonce)`
 
-### What it does
+```cpp
+Block::Block(Hash prev_hash, std::vector<Transaction> txs,
+             uint64_t timestamp, uint32_t nonce);
+```
 
-Computes a Merkle root from transaction hashes.
+Constructs a block with the given header fields. Automatically:
 
-### Why it exists
+1. Sorts/stores transactions
+2. Computes the Merkle root from all txids
 
-Blocks need a compact integrity commitment to included transactions.
+### `Block::hash`
 
-### Parameters
+```cpp
+Hash Block::hash() const;
+```
 
-- list of transaction hashes.
+Computes the block hash: `blake2b(header_bytes)`. Header bytes:
 
-### Return value
+```
+[prev_hash (32)] [merkle_root (32)] [timestamp (8)] [nonce (4)] [version (4)]
+```
 
-Merkle root hash, or zero-filled hash for empty input.
+Total: 80 bytes input → 32 bytes output.
 
-### Complexity
+### `Block::verifyDifficulty`
 
-Roughly O(n) hashing work across levels.
+```cpp
+bool Block::verifyDifficulty() const;
+```
 
-### Behavior details
+Checks that the first 3 bytes of the block hash are `0x00`. This is the
+Proof of Work check for difficulty = 3.
 
-- duplicates last hash if a level has odd size,
-- iteratively hashes concatenated pairs until one root remains.
+```cpp
+// Equivalent:
+bool ok = h[0] == 0x00 && h[1] == 0x00 && h[2] == 0x00;
+```
 
-### Common pitfalls
+### `Block::serialize`
 
-Empty input returns a zero hash, which callers should interpret carefully.
+```cpp
+std::vector<uint8_t> Block::serialize() const;
+```
+
+Serializes the full block (header + transactions):
+
+```
+[prev_hash (32)] [merkle_root (32)] [timestamp (8)] [nonce (4)] [version (4)]
+[tx_count (4 LE)] [Transaction 0...] [Transaction 1...]
+```
+
+### `Block::Block(span)`
+
+```cpp
+Block::Block(std::span<const uint8_t> data);
+```
+
+Deserializes a block from bytes. Reconstructs the header and all
+transactions.
+
+### `compute_block_merkle_root`
+
+```cpp
+Hash compute_block_merkle_root(const std::vector<Transaction>& txs);
+```
+
+Builds a Merkle tree from the transaction hashes and returns the root.
+
+Algorithm:
+1. Collect all txids
+2. While more than 1 hash remains:
+   - If odd count, duplicate the last element
+   - Pair and hash each pair
+3. Return the single remaining hash (or all-zeros for empty tx list)
+
+### `buildTarget`
+
+```cpp
+Hash buildTarget(uint8_t difficulty);
+```
+
+Builds a 32-byte target value for Proof of Work. The first `difficulty`
+bytes are `0x00`, the rest are `0xFF`. For difficulty = 3:
+
+```
+target = 0x000000FFFF...FF
+```
+
+A valid block hash must be ≤ this target (when both are interpreted as
+big-endian 256-bit integers).
+
+### `hash_to_uint256`
+
+```cpp
+uint256_t hash_to_uint256(const Hash& h);
+```
+
+Converts a 32-byte hash to a 256-bit unsigned integer (from Boost's
+`boost::multiprecision::uint256_t`) via big-endian byte order.
+
+### `hash_to_hex` (block.cpp overload)
+
+```cpp
+std::string hash_to_hex(const std::array<uint8_t, 32>& h);
+```
+
+Same as `util.h`'s version. Block.cpp keeps its own copy to avoid a
+cross-layer dependency from block → util.
 
 ---
 
-# `axis/src/storage/database_manager.cpp`
+## `chain.cpp`
 
-## `DatabaseManager::DatabaseManager(const std::string& path)`
+### `Chain::Chain`
 
-### What it does
+```cpp
+Chain::Chain();
+```
 
-Opens or creates a LevelDB database at `path`.
+Constructor. In order:
 
-### Why it exists
+1. Opens LevelDB databases `blocks/` and `pool/`
+2. Calls `load_blocks()` — reads all blocks, reconstructs UTXO set
+3. Calls `load_pool()` — reloads pending transactions into mempool
+4. If no blocks found, calls `create_genesis()`
 
-Initializes persistent storage wrappers.
+### `Chain::create_genesis`
 
-### Error handling
+```cpp
+void Chain::create_genesis();
+```
 
-Throws `std::runtime_error` if opening fails.
+Creates the genesis block (height 0):
 
-### Side effects
+- `prev_hash` = all zeros
+- One coinbase transaction: output to `GENESIS_ADDR` with value
+  `15 * UNITS` = 15,000,000
+- Timestamp: `1781545365` (a fixed historical value)
+- Nonce: `31496` (pre-mined: this nonce satisfies difficulty 3)
+- Stores the block to LevelDB
 
-Creates database directories if needed via LevelDB.
+### `Chain::add_tx`
 
-## `std::string DatabaseManager::loadKey(const std::string& key) const`
+```cpp
+TxError Chain::add_tx(const SignedTransaction& stx);
+```
 
-### What it does
+Validates and adds a transaction to the mempool.
 
-Loads a value by key.
+**Validation order:**
+1. Output sum > 0
+2. Transaction has inputs
+3. All input UTXOs exist
+4. All input UTXOs belong to the signer's address
+5. Input sum >= output sum
+6. Signature is valid
+7. Not already in mempool
+8. No input already spent in mempool
 
-### Why it exists
+**On success:** stores to `pool_` and `pool_db_`.
 
-Convenience wrapper for raw reads.
+### `Chain::add_block`
 
-### Return value
+```cpp
+BlockError Chain::add_block(Block& blk);
+```
 
-Stored value or empty string if not found.
+Validates and applies a mined block.
 
-### Error handling
+**Validation order:**
+1. Height matches expected next height
+2. `prev_hash` matches chain tip
+3. Block hash matches recomputed hash
+4. Proof of Work is valid (hash <= target)
+5. Timestamp within acceptable window
+6. All non-coinbase transactions have valid signatures
+7. All non-coinbase inputs exist in UTXO set
+8. Coinbase is first transaction and has no inputs
 
-Throws on read failures other than not-found.
+**On success:**
+1. Applies each transaction to the UTXO set
+2. Removes confirmed transactions from mempool
+3. Stores block to LevelDB
+4. Advances chain tip
 
-## `void DatabaseManager::remove(const std::string& kname) const`
+### `Chain::apply_tx`
 
-### What it does
+```cpp
+void Chain::apply_tx(Transaction& tx);
+```
 
-Deletes a key from the database.
+Internal method. Applies a confirmed transaction to the UTXO set:
 
-### Error handling
+1. Erases all input OutPoints from `utxo_`
+2. Inserts all outputs as new UTXOs keyed by `(tx.txid(), index)`
 
-Throws if delete fails.
+Does NOT validate (validation happens before calling this).
 
-## `std::string DatabaseManager::saveKey(const std::string& key, const std::string& value) const`
+### `Chain::get_utxos`
 
-### What it does
+```cpp
+std::pair<std::vector<OutPoint>, uint64_t>
+Chain::get_utxos(const Address& addr) const;
+```
 
-Writes a key/value pair.
+Returns all UTXOs belonging to `addr` plus the total sum.
 
-### Why it exists
+### `Chain::get_tx`
 
-Used for block and mempool persistence.
+```cpp
+std::optional<Transaction> Chain::get_tx(const Hash& txid) const;
+```
 
-### Side effects
+Searches all blocks for a transaction with the given txid. Returns
+`std::nullopt` if not found.
 
-Mutates persistent DB state.
+### `Chain::get_mempool_tx`
 
-### Return value
+```cpp
+std::optional<Transaction> Chain::get_mempool_tx(const Hash& txid) const;
+```
 
-Returns `value` for convenience.
+Looks up a transaction in the mempool by txid.
+
+### `Chain::get_block_range`
+
+```cpp
+std::vector<Block> Chain::get_block_range(uint32_t start, uint32_t end) const;
+```
+
+Returns blocks from heights `start` to `end` inclusive.
+
+### `Chain::load_blocks`
+
+```cpp
+void Chain::load_blocks();
+```
+
+Reads all blocks from LevelDB using an iterator. Each block is
+deserialized and its transactions are applied to the UTXO set. Skips
+sentinel keys (those not exactly 8 bytes).
+
+### `Chain::load_pool`
+
+```cpp
+void Chain::load_pool();
+```
+
+Reads all pending transactions from LevelDB's pool database into memory.
+
+### `Chain::store_block`
+
+```cpp
+void Chain::store_block(Block& blk);
+```
+
+Writes a block to LevelDB: block data at key `height_key(height_)`, tip
+hash at sentinel `-1`, and height at sentinel `-2`.
+
+### `open_db` (chain.cpp internal)
+
+```cpp
+static std::unique_ptr<leveldb::DB> open_db(const std::string& name);
+```
+
+Opens or creates a LevelDB database in `./axis_data/<name>/`.
 
 ---
 
-# `axis/src/blockchain/blockchain.cpp`
+## `net.cpp`
 
-## `Blockchain::Blockchain()`
+### `Server::Server`
 
-### What it does
+```cpp
+Server::Server(Chain& chain);
+```
 
-Initializes chain state, opens databases, loads persisted data, creates genesis block if needed, and builds the difficulty target.
+Creates the server with a reference to the chain. Does NOT start listening
+— call `start()` to begin.
 
-### Why it exists
+### `Server::set_port`
 
-Constructs the singleton node state.
+```cpp
+void Server::set_port(uint16_t port);
+```
 
-### Side effects
+Sets the listening port. Default is 8080.
 
-- opens databases,
-- reads persistent state,
-- may create and persist genesis block.
+### `Server::start`
 
-## `void Blockchain::createGenesisBlock()`
+```cpp
+void Server::start(uint16_t port);
+```
 
-### What it does
+Binds to the port, starts accepting connections, and runs the Asio event
+loop. Blocks the calling thread.
 
-Creates the hardcoded genesis block and applies it to node state.
+### `Server::do_accept`
 
-### Why it exists
+```cpp
+asio::awaitable<void> Server::do_accept();
+```
 
-Ensures every new node starts from the same first block.
+Accept loop: waits for a new TCP connection, spawns a `session` coroutine
+for it, and repeats.
 
-### Called by
+### `Server::session`
 
-Constructor when no stored blocks exist.
+```cpp
+asio::awaitable<void> Server::session(asio::ip::tcp::socket sock);
+```
 
-### Side effects
+Per-connection coroutine. Reads packets in a loop:
+1. Read 9-byte header (magic + type + payload_length)
+2. Verify magic == `0xDEADBEEF`
+3. Read payload
+4. Dispatch to the appropriate handler
+5. Exit on read error (connection closed)
 
-- inserts genesis transaction into `transactions`,
-- appends block to `blocks`,
-- saves block to `blocksDB`,
-- updates UTXO set.
+### `async_read` (net.cpp free function)
 
-### Pitfalls
+```cpp
+asio::awaitable<std::vector<uint8_t>> async_read(
+    asio::ip::tcp::socket& sock, size_t n);
+```
 
-Genesis values are hardcoded; changing them breaks compatibility with existing data and any other node expecting the same origin.
+Reads exactly `n` bytes from the socket. Throws on disconnect.
 
-## `Blockchain& Blockchain::getInstance()`
+### `async_write` (net.cpp free function)
 
-### What it does
+```cpp
+asio::awaitable<void> async_write(
+    asio::ip::tcp::socket& sock, std::span<const uint8_t> data);
+```
 
-Returns the singleton blockchain instance.
+Writes all bytes to the socket.
 
-### Why it exists
+### `send_payload` (net.cpp free function)
 
-Simplifies global access to node state.
+```cpp
+asio::awaitable<void> send_payload(
+    asio::ip::tcp::socket& sock, MsgType type,
+    const std::vector<uint8_t>& payload);
+```
 
-### Thread safety
+Writes a complete packet: 9-byte header + payload bytes.
 
-C++ static local initialization is thread-safe, but the object itself is not generally safe for concurrent mutation.
+### `send_txresponse` (net.cpp free function)
 
-## `std::string Blockchain::generateBlockKey()`
+```cpp
+asio::awaitable<void> send_txresponse(
+    asio::ip::tcp::socket& sock, bool accepted,
+    TxError err, const std::string& reason);
+```
 
-### What it does
+Writes a `TransactionResponse` packet.
 
-Builds a zero-padded decimal key from the current block count.
+### `on_get_utxos`
 
-### Why it exists
+```cpp
+asio::awaitable<void> Server::on_get_utxos(
+    asio::ip::tcp::socket& sock, std::span<const uint8_t> payload);
+```
 
-Keeps LevelDB block keys lexicographically ordered by height.
+Handler for `GetUTXOs (3)`:
+1. Read 20-byte address from payload
+2. Call `chain_.get_utxos(addr)`
+3. Serialize and send `SendUTXOs (4)` response
 
-### Return value
-
-10-character numeric string.
-
-## `Hash Blockchain::buildTarget()`
-
-### What it does
-
-Builds the proof-of-work target from the configured difficulty.
-
-### Why it exists
-
-`verifyDifficulty()` needs a threshold to compare candidate block hashes against.
-
-### Side effects
-
-Updates member `target`.
-
-## `void Blockchain::loadBlocks()`
-
-### What it does
-
-Loads all stored blocks from LevelDB and rebuilds in-memory chain state.
-
-### Why it exists
-
-Restores confirmed blockchain state after restart.
-
-### Side effects
-
-- fills `blocks`,
-- fills `transactions`,
-- rebuilds `utxo`,
-- fills `blocksMap`.
-
-### Complexity
-
-O(number of stored blocks + total transactions).
-
-## `void Blockchain::loadPoolTransactions()`
-
-### What it does
-
-Loads pending transactions from the mempool DB and rebuilds input reservations.
-
-### Why it exists
-
-Preserves mempool state across restart.
-
-### Side effects
-
-- fills `transactionsPool`,
-- fills `mempoolInputs`.
-
-## `bool Blockchain::verifyDifficulty(const Hash& hash)`
-
-### What it does
-
-Checks whether a hash is less than or equal to the target.
-
-### Why it exists
-
-Implements the project’s proof-of-work acceptance condition.
-
-## `bool Blockchain::verifyInputs(const SignedTransaction& st) const`
-
-### What it does
-
-Validates structural and ownership properties of transaction inputs and outputs.
-
-### Why it exists
-
-Ensures the transaction spends real, owned, non-duplicated, sufficient UTXOs.
-
-### Called by
-
-`acceptTransaction()`.
-
-### Checks performed
-
-- non-empty inputs and outputs,
-- no duplicate inputs,
-- each input exists in current UTXO set,
-- each UTXO belongs to derived sender address,
-- no overflow in input/output summation,
-- total inputs >= total outputs.
-
-### Complexity
-
-O(inputs + outputs), plus hash-map lookups.
-
-### Pitfalls
-
-Does not independently ensure `tx.coins` equals any particular output sum pattern.
-
-## `bool Blockchain::verifySignature(const SignedTransaction& st) const`
-
-### What it does
-
-Verifies detached Ed25519 signature over the transaction hash.
-
-### Why it exists
-
-Confirms the holder of the corresponding private key authorized the transaction.
-
-## `void Blockchain::updateUTXO(const Transaction& transaction)`
-
-### What it does
-
-Applies a confirmed transaction to the current UTXO set.
-
-### Why it exists
-
-This is the core state-transition step for confirmed transactions.
-
-### Side effects
-
-- removes spent outputs,
-- inserts newly created outputs.
-
-## `std::expected<void, Blockchain::TransactionRejection> Blockchain::acceptTransaction(const SignedTransaction& st)`
-
-### What it does
-
-Attempts full mempool acceptance of a signed transaction.
-
-### Why it exists
-
-Centralizes transaction admission policy.
-
-### Return value
-
-- success: empty `expected`
-- failure: rejection code and reason
-
-### Side effects on success
-
-- inserts into `transactionsPool`,
-- reserves inputs in `mempoolInputs`,
-- persists to `poolsDB`.
-
-### Pitfalls
-
-This function mutates state; callers should not treat it as a pure validation check.
-
-## `std::expected<void, std::string> Blockchain::addTransaction(const SignedTransaction& signedTransaction)`
-
-### What it does
-
-Thin public wrapper around `acceptTransaction()`.
-
-### Why it exists
-
-Exposes a simpler public interface using a string error message.
-
-## `Hash Blockchain::getCurrentBlockHash() const`
-
-### What it does
-
-Returns the hash of the current chain tip.
-
-### Why it exists
-
-Useful for future block construction or status inspection.
-
-## `bool Blockchain::transactionInPool(const std::string& txHash) const`
-
-### What it does
-
-Checks whether a transaction hash already exists in the mempool.
-
-### Why it exists
-
-Prevents duplicate pending transactions.
-
-## `std::string Blockchain::serializeBlock(const Block& block)`
-
-### What it does
-
-Delegates to `Block::serialize()`.
-
-### Why it exists
-
-Keeps block persistence code inside `Blockchain` readable.
-
-## `Block Blockchain::deserializeBlock(const std::string& bytes)`
-
-### What it does
-
-Delegates to `Block` deserialization constructor.
-
-## `bool Blockchain::verifyCoinbaseTransaction(const Transaction& tx) const`
-
-### What it does
-
-Checks whether a transaction is a valid coinbase-style reward transaction.
-
-### Rules
-
-- no inputs,
-- exactly one output,
-- output amount <= `MINER_REWARD`.
-
-## `bool Blockchain::verifyBlock(const Block& block)`
-
-### What it does
-
-Performs basic block validity checks.
-
-### Why it exists
-
-Provides a block acceptance policy foundation.
-
-### Checks
-
-- non-empty transaction list,
-- first transaction valid coinbase,
-- remaining transactions already in mempool,
-- correct Merkle root,
-- correct previous hash linkage,
-- satisfies difficulty target.
-
-### Limitations
-
-Does not itself append or persist the block.
-
-## `Addr Blockchain::decodeAddressRequest(std::span<const unsigned char> payload)`
-
-### What it does
-
-Parses an address-only request payload.
-
-### Why it exists
-
-Used by address-based query handlers.
-
-### Error handling
-
-Throws if payload length is not exactly `AddrSize`.
-
-## `SignedTransaction Blockchain::deserializeCreateTransactionRequest(std::span<const unsigned char> payload)`
-
-### What it does
-
-Parses a binary `CreateTransaction` payload into a `SignedTransaction`.
-
-### Why it exists
-
-Separates byte-level protocol parsing from higher-level business logic.
-
-### Error handling
-
-Throws on malformed counts, truncation, or trailing bytes.
-
-### Complexity
-
-O(inputs + outputs).
-
-### Coroutine behavior
-
-None. Pure parsing function.
-
-## `Blockchain::AddressUtxos Blockchain::findAddressUtxos(const Addr& address) const`
-
-### What it does
-
-Scans the full UTXO set and collects entries owned by the given address.
-
-### Why it exists
-
-Supports `GetUTXOs` queries.
-
-### Return value
-
-Internal struct containing matching `Input` references and total coin sum.
-
-### Complexity
-
-O(total UTXO count).
-
-### Pitfalls
-
-Can become expensive as the chain grows because no address index exists.
-
-## `std::vector<unsigned char> Blockchain::serializeUtxosResponse(const AddressUtxos& addressUtxos)`
-
-### What it does
-
-Encodes the result of an address UTXO query into response bytes.
-
-### Why it exists
-
-Forms the payload for `UTXOsResponse` packets.
-
-## `std::vector<unsigned char> Blockchain::serializeTransactionResponse(bool accepted, TransactionErrorCode errorCode, std::string_view reason)`
-
-### What it does
-
-Builds a transaction submission response payload.
-
-### Why it exists
-
-Allows uniform success/rejection replies.
-
-### Error handling
-
-Throws if reason text is longer than `uint16_t` can encode.
-
-## `asio::awaitable<void> Blockchain::sendPacket(...)`
-
-### What it does
-
-Wraps a payload into a `Packet` and asynchronously writes it to the socket.
-
-### Why it exists
-
-Centralizes network response framing.
-
-### Coroutine behavior
-
-Suspends during `asio::async_write`.
-
-## `asio::awaitable<void> Blockchain::sendTransactionResponse(...)`
-
-### What it does
-
-Helper that sends a `TransactionResponse` packet.
-
-### Why it exists
-
-Avoids repeating payload-type and serialization details.
-
-## `asio::awaitable<void> Blockchain::readMessage(std::shared_ptr<asio::ip::tcp::socket> socket)`
-
-### What it does
-
-Reads one framed packet from a socket and dispatches it.
-
-### Why it exists
-
-This is the main per-connection read coroutine.
-
-### Error handling
-
-Catches exceptions and logs a rejection.
-
-### Coroutine behavior
-
-Suspends during both `async_read` calls and during delegated handler execution.
-
-### Pitfalls
-
-Currently handles one message rather than looping indefinitely per connection.
-
-## `void Blockchain::acceptClient()`
-
-### What it does
-
-Schedules asynchronous acceptance of the next client connection.
-
-### Why it exists
-
-Maintains a continuously listening server.
-
-### Side effects
-
-- creates new socket,
-- recursively schedules the next accept,
-- spawns `readMessage()` on success.
-
-## `void Blockchain::setupConnection()`
-
-### What it does
-
-Starts accepting clients and runs the Asio event loop.
-
-### Why it exists
-
-This is the public start-server entry point used by `main()`.
-
-## `asio::awaitable<void> Blockchain::handlePayload(PayloadType type, std::span<const unsigned char> payload, std::shared_ptr<asio::ip::tcp::socket> socket)`
-
-### What it does
-
-Dispatches a parsed payload by enum type.
-
-### Why it exists
-
-Separates frame parsing from per-message behavior.
-
-### Current implemented cases
-
-- `GetUTXOs`
-- `CreateTransaction`
-
-### Unsupported behavior
-
-Logs an error for other message types.
-
-## `asio::awaitable<void> Blockchain::handleGetUTXOs(...)`
-
-### What it does
-
-Handles an address query and returns a `UTXOsResponse`.
-
-### Flow
-
-- decode address,
-- find matching UTXOs,
-- serialize response,
-- send packet.
-
-## `asio::awaitable<void> Blockchain::handleCreateTransaction(...)`
-
-### What it does
-
-Implements the full network transaction submission flow.
-
-### Why it exists
-
-This is the main externally visible business operation in the node.
-
-### Steps
-
-1. parse request payload,
-2. reject malformed payloads,
-3. verify sender/public-key match,
-4. call `acceptTransaction()`,
-5. translate result into `TransactionResponse`.
-
-### Error handling
-
-Returns structured rejection codes to clients whenever possible.
-
-### Coroutine behavior
-
-Suspends while writing the response.
+### `on_create_tx`
+
+```cpp
+asio::awaitable<void> Server::on_create_tx(
+    asio::ip::tcp::socket& sock, std::span<const uint8_t> payload);
+```
+
+Handler for `CreateTransaction (12)`:
+1. Deserialize `SignedTransaction` from payload
+2. Call `chain_.add_tx(stx)`
+3. Send `TransactionResponse (13)` with result
+
+### `on_get_tx`
+
+```cpp
+asio::awaitable<void> Server::on_get_tx(
+    asio::ip::tcp::socket& sock, std::span<const uint8_t> payload);
+```
+
+Handler for `GetTx (5)`:
+1. Read 32-byte txid from payload
+2. Call `chain_.get_tx(txid)`
+3. Send `SendTx (6)` with serialized transaction (or empty)
+
+### `on_get_mempool_tx`
+
+```cpp
+asio::awaitable<void> Server::on_get_mempool_tx(
+    asio::ip::tcp::socket& sock, std::span<const uint8_t> payload);
+```
+
+Handler for `GetMempoolTx (11)`:
+1. Read 32-byte txid from payload
+2. Call `chain_.get_mempool_tx(txid)`
+3. Send `SendTx (6)` with serialized transaction (or empty)
+
+### `on_get_block_range`
+
+```cpp
+asio::awaitable<void> Server::on_get_block_range(
+    asio::ip::tcp::socket& sock, std::span<const uint8_t> payload);
+```
+
+Handler for `GetBlockRange (9)`:
+1. Read `start_range` (uint32 LE) and `end_range` (uint32 LE)
+2. Call `chain_.get_block_range(start, end)`
+3. Serialize and send `SendBlockRange (10)` response
 
 ---
 
-# `axis/src/core/logger.cpp`
+## `main.cpp`
 
-## `Logger::log`, `Logger::debug`, `Logger::error`, `Logger::reject`
+### `main`
 
-### What they do
+```cpp
+int main(int argc, char** argv);
+```
 
-Print prefixed log lines to standard output.
-
-### Why they exist
-
-Provide minimal visibility into runtime behavior.
-
-### Side effects
-
-Console output.
-
-### Limitations
-
-No log levels, sinks, timestamps, or structured metadata.
+Entry point:
+1. Check for `--help` flag
+2. Create `Chain` (loads from disk or creates genesis)
+3. Create `Server` with reference to chain
+4. Start server on port 8080
+5. Print status message
+6. Run event loop (blocks until Ctrl+C)

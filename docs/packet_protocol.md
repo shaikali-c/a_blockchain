@@ -1,244 +1,231 @@
-# Packet Protocol
+# Packet protocol
 
-This document defines the binary network packet format used by Axis.
+This document describes Axis's binary packet format and message types.
 
-## 1. Overview
+## Packet format
 
-Axis uses a custom TCP binary framing protocol.
+Every message sent over TCP follows this structure:
 
-Every message sent over the socket is wrapped in a packet with:
-
-1. a size prefix,
-2. a payload type,
-3. a payload body.
-
-## 2. Top-level packet layout
-
-```text
-[size: uint32_t][payloadType: uint16_t][payload bytes...]
+```
+[magic (4 bytes)] [type (1 byte)] [payload_length (4 bytes)] [payload (N bytes)]
 ```
 
-### Meaning of each field
+| Field | Type | Description |
+|-------|------|-------------|
+| `magic` | `uint32_t` | Always `0xDEADBEEF`. Used to confirm we're talking to an Axis node. |
+| `type` | `uint8_t` | Message type (see below). |
+| `payload_length` | `uint32_t` | Length of payload in bytes (big-endian, unsigned). |
+| `payload` | `uint8_t[N]` | Type-specific payload. |
 
-- `size`: number of bytes that follow after the size field. In other words, `sizeof(payloadType) + payload.size()`.
-- `payloadType`: enum identifying what the payload means.
-- `payload`: bytes interpreted according to the payload type.
+Total header size: **9 bytes**.
 
-## 3. Code locations
+## Message types
 
-- `Packet` is defined in `axis/include/axis/core/common.h`
-- request parsing is handled in `axis/src/blockchain/blockchain.cpp`
-
-## 4. Payload types
-
-Defined in `PayloadType`.
-
-| Enum value | Intended meaning | Current implementation status |
-|---|---|---|
-| `GetBalance` | request balance information | declared, not implemented |
-| `GetBlock` | request block data | declared, not implemented |
-| `GetTransaction` | request transaction data | declared, not implemented |
-| `GetUTXO` | request one UTXO | declared, handler call commented out |
-| `GetUTXOs` | request all UTXOs for an address | implemented |
-| `BalanceResponse` | response for balance query | declared only |
-| `BlockResponse` | response for block query | declared only |
-| `TransactionResponse` | response for transaction submission | implemented |
-| `UTXOResponse` | response for one UTXO query | declared only |
-| `UTXOsResponse` | response for address UTXO query | implemented |
-| `CreateTransaction` | submit signed transaction | implemented |
-
-## 5. Packet construction
-
-`Packet::getPacket()` builds the byte sequence by:
-
-1. computing total `size`,
-2. allocating a vector for `sizeof(size) + size`,
-3. copying `size`,
-4. copying `payloadType`,
-5. copying the payload bytes.
-
-## 6. Packet parsing on the server
-
-`Blockchain::readMessage()`:
-
-1. reads `uint32_t payloadSize`,
-2. checks it is at least `sizeof(PayloadType)`,
-3. reads that many bytes,
-4. copies out the `PayloadType`,
-5. passes the remaining bytes to `handlePayload()`.
-
-## 7. `GetUTXOs` request
-
-### Purpose
-
-Ask the node for all spendable outputs owned by an address.
-
-### Payload layout
-
-```text
-[address: 20 bytes]
+```cpp
+enum class MsgType : uint8_t {
+    FullBlocks     = 1,   // Blocks 0..N in order (full serialization)
+    GetUTXOs       = 3,   // Request: address (20 bytes)
+    SendUTXOs      = 4,   // Response: utxo_count (4) + OutPoint[] + TxOutput[]
+    GetTx          = 5,   // Request: txid (32 bytes)
+    SendTx         = 6,   // Response: serialized SignedTransaction
+    GetBlock       = 7,   // Request: block_height (8 bytes as string)  [dead]
+    SendBlock      = 8,   // Response: serialized Block                 [dead]
+    GetBlockRange  = 9,   // Request: start_range (4), end_range (4)    [dead]
+    SendBlockRange = 10,  // Response: blocks_count (4) + blocks[]
+    GetMempoolTx   = 11,  // Request: txid (32 bytes)
+    CreateTransaction = 12, // SignedTransaction payload
+    TransactionResponse = 13, // {accepted (1), err_code (1), reason_len (2), reason (N)}
+};
 ```
 
-### Server behavior
+> Note: Types 7 (`GetBlock`) and 8 (`SendBlock`) exist in the enum but are
+> not handled by the server. Type 9 (`GetBlockRange`) is also not handled.
+> These are remnants available for future use.
 
-- decodes the address,
-- scans the in-memory UTXO set,
-- returns matching inputs plus total coin amount.
+## Detailed message layouts
 
-## 8. `UTXOsResponse`
+### GetUTXOs (type 3)
 
-### Payload layout
-
-```text
-[inputCount: uint32_t]
-repeat inputCount times:
-    [transaction_hash: 32]
-    [output_index: uint32_t]
-[totalCoins: uint64_t]
+**Payload:**
+```
+[address (20 bytes)]
 ```
 
-### Meaning
+Request all UTXOs belonging to a given address.
 
-The response contains:
+### SendUTXOs (type 4)
 
-- references to all matching spendable outputs,
-- the total sum of those outputs.
-
-### Why inputs are returned instead of full UTXOs
-
-The client mainly needs references it can later spend. The total balance is provided separately.
-
-## 9. `CreateTransaction` request
-
-### Purpose
-
-Submit a signed transaction candidate to the mempool.
-
-### Payload layout
-
-```text
-[publicKey]
-[sender]
-[receiver]
-[amount: uint64_t]
-[timestamp: uint64_t]
-[inputCount: uint32_t]
-[inputs...]
-[outputCount: uint32_t]
-[outputs...]
-[signature]
+**Payload:**
+```
+[utxo_count: varint] [OutPoint[0]] [TxOutput[0]] [OutPoint[1]] [TxOutput[1]] ...
 ```
 
-More explicitly:
+Where:
+- `OutPoint` = `[txid (32)] [index (4)]`
+- `TxOutput` = `[recipient (20)] [amount (8)]`
+- Count is encoded as a **varint** (see Variable integer encoding).
 
-```text
-[publicKey: crypto_sign_PUBLICKEYBYTES]
-[sender: 20]
-[receiver: 20]
-[amount: uint64_t]
-[timestamp: uint64_t]
-[inputCount: uint32_t]
-repeat inputCount times:
-    [input.transaction_hash: 32]
-    [input.output_index: uint32_t]
-[outputCount: uint32_t]
-repeat outputCount times:
-    [output.owner: 20]
-    [output.coins: uint64_t]
-[signature: crypto_sign_BYTES]
+### CreateTransaction (type 12)
+
+**Payload:**
+```
+[pubkey (32)] [timestamp (8)] [input_count (4)] [inputs...] [output_count (4)] [outputs...] [signature (64)]
 ```
 
-## 10. `TransactionResponse`
+Each input:   `[txid (32)] [index (4)]`
+Each output:  `[address (20)] [amount (8)]`
 
-### Payload layout
+### TransactionResponse (type 13)
 
-```text
-[accepted: uint8_t]
-[errorCode: uint8_t]
-[reasonLength: uint16_t]
-[reasonBytes: variable]
+**Payload:**
+```
+[accepted (1)] [error_code (1)] [reason_length (2)] [reason (N)]
 ```
 
-### Fields
+| Field | Type | Description |
+|-------|------|-------------|
+| `accepted` | `uint8_t` | `1` = accepted, `0` = rejected |
+| `error_code` | `uint8_t` | `TxError` code (0 = no error) |
+| `reason_length` | `uint16_t` | Length of the reason string |
+| `reason` | `uint8_t[N]` | Human-readable reason (UTF-8) |
 
-- `accepted`: `1` for accepted, `0` for rejected
-- `errorCode`: value from `TransactionErrorCode`
-- `reasonLength`: length of human-readable reason
-- `reasonBytes`: UTF-8-compatible reason text
+### SendBlockRange (type 10)
 
-## 11. Transaction error codes
-
-Defined in `TransactionErrorCode`.
-
-| Code | Meaning |
-|---|---|
-| `None` | no error |
-| `InvalidPayload` | request bytes could not be parsed |
-| `SenderPublicKeyMismatch` | sender address does not match supplied public key |
-| `InvalidAmount` | amount was zero |
-| `OwnershipVerificationFailed` | inputs missing, duplicated, not owned, or insufficient |
-| `SignatureVerificationFailed` | signature did not verify |
-| `AlreadyInMempool` | transaction hash already present |
-| `InputReservedByMempool` | another pending transaction already uses an input |
-| `InternalError` | persistence or internal processing failed |
-
-## 12. Example packet: `GetUTXOs`
-
-Conceptually:
-
-```text
-size = 2 + 20 = 22 bytes
-payloadType = GetUTXOs
-payload = 20-byte address
+**Payload:**
+```
+[blocks_count (4)] [blocks_data...]
 ```
 
-Final frame:
-
-```text
-[4 bytes size=22][2 bytes payloadType][20 bytes address]
+Each block is serialized as:
+```
+[prev_hash (32)] [merkle_root (32)] [timestamp (8)] [nonce (4)] [version (4)]
+[tx_count (4)] [Transaction[0]] [Transaction[1]] ...
 ```
 
-## 13. Example packet: `CreateTransaction`
-
-Conceptually:
-
-```text
-[4 bytes size]
-[2 bytes payloadType = CreateTransaction]
-[32 bytes public key]
-[20 bytes sender]
-[20 bytes receiver]
-[8 bytes amount]
-[8 bytes timestamp]
-[4 bytes input count]
-[... inputs ...]
-[4 bytes output count]
-[... outputs ...]
-[64 bytes signature]
+Each Transaction is serialized as:
+```
+[txid (32)] [input_count (4)] [inputs...] [output_count (4)] [outputs...] [timestamp (8)]
 ```
 
-Actual `publicKey` and `signature` sizes depend on libsodium constants, but with Ed25519 they are typically 32 and 64 bytes respectively.
+Where each input is `[txid (32)] [index (4)]` and each output is `[address (20)] [amount (8)]`.
 
-## 14. Validation rules that affect protocol users
+### FullBlocks (type 1)
 
-Clients must ensure:
+Same format as `SendBlockRange` but with all blocks from height 0 upward.
+Sent on initial connection.
 
-- sender address is derived from the submitted public key,
-- transaction hash is computed over the exact same fields as the server,
-- signature signs that exact hash,
-- input/output counts match the actual data present,
-- there are no trailing bytes.
+### GetTx (type 5)
 
-## 15. Compatibility caveat
+**Payload:**
+```
+[txid (32 bytes)]
+```
 
-Like the rest of Axis serialization, this protocol uses native raw integer layout. That means interoperability across different architectures is not guaranteed unless both ends share the same assumptions.
+### SendTx (type 6)
 
-## 16. Advice for writing packet tests
+**Payload:**
+```
+[same as CreateTransaction payload format]
+```
 
-When testing clients against Axis:
+Serialized `SignedTransaction`: `[pubkey (32)] [timestamp (8)] [input_count (4)] [inputs...] [output_count (4)] [outputs...] [signature (64)]`
 
-- create golden byte fixtures,
-- test malformed counts,
-- test truncated packets,
-- test trailing-byte rejection,
-- test every rejection code path.
+### GetMempoolTx (type 11)
+
+**Payload:**
+```
+[txid (32 bytes)]
+```
+
+## Variable integer encoding (varint)
+
+Axis uses a simple variable-length integer encoding to minimize space when
+transmitting small values:
+
+| Value range | Encoding | Bytes |
+|-------------|----------|-------|
+| 0 – 0xFC | Single byte | 1 |
+| 0xFD – 0xFFFF | `0xFD` + uint16 LE | 3 |
+| 0x10000 – 0xFFFFFFFF | `0xFE` + uint32 LE | 5 |
+| ≥ 0x100000000 | `0xFF` + uint64 LE | 9 |
+
+Same encoding as Bitcoin's CompactSize.
+
+### Encoding:
+
+```cpp
+// Writer handles this:
+void Writer::put_varint(uint64_t v) {
+    if (v <= 0xFC) {
+        put_u8(v);
+    } else if (v <= 0xFFFF) {
+        put_u8(0xFD);
+        put_u16(v);
+    } else if (v <= 0xFFFFFFFF) {
+        put_u8(0xFE);
+        put_u32(v);
+    } else {
+        put_u8(0xFF);
+        put_u64(v);
+    }
+}
+```
+
+### Decoding:
+
+```cpp
+uint64_t Reader::take_varint() {
+    auto first = take_u8();
+    if (first <= 0xFC) return first;
+    if (first == 0xFD) return take_u16();
+    if (first == 0xFE) return take_u32();
+    return take_u64();
+}
+```
+
+## Endianness
+
+All multi-byte fields are **little-endian** (LE), except the header's
+`payload_length` which is **big-endian** (network byte order).
+
+| Field | Endianness |
+|-------|------------|
+| `magic` (header) | LE |
+| `payload_length` (header) | **BE** (network byte order) |
+| `index` (OutPoint) | LE |
+| `timestamp` | LE |
+| `amount` | LE |
+| `nonce` (block) | LE |
+| `version` (block) | LE |
+| Output count | LE |
+| Input count | LE |
+
+## Server dispatch
+
+The `Server::session` coroutine reads packets and dispatches to handlers:
+
+```cpp
+auto magic = r.take_u32();
+if (magic != 0xDEADBEEF) break;
+
+auto type = r.take_u8();
+auto payload_len = r.take_u32_be();  // BE in header
+
+// Read payload bytes
+auto payload = co_await async_read(sock, payload_len);
+
+switch (MsgType(type)) {
+    case MsgType::GetUTXOs:         co_await on_get_utxos(sock, payload); break;
+    case MsgType::CreateTransaction: co_await on_create_tx(sock, payload); break;
+    case MsgType::GetTx:            co_await on_get_tx(sock, payload); break;
+    case MsgType::GetMempoolTx:     co_await on_get_mempool_tx(sock, payload); break;
+    case MsgType::GetBlockRange:    co_await on_get_block_range(sock, payload); break;
+    default: break; // ignore unknown
+}
+```
+
+## Future: FullBlocks on connect
+
+The enum includes `FullBlocks (1)` for sending the entire chain to a new
+peer. The handler exists but is not called automatically on connection.
+In a future version, handshake logic would trigger this.

@@ -1,227 +1,250 @@
-# Network
+# Network layer
 
-This document explains the networking model used by Axis.
+This document describes Axis's network layer: how TCP connections are
+handled, how coroutines work, and how messages are dispatched.
 
-## 1. Overview
-
-Axis runs a TCP server using standalone Asio.
-
-The networking model is deliberately small:
-
-- one TCP listener,
-- one binary packet format,
-- one message read per accepted client in the current implementation,
-- coroutine-based async reads and writes.
-
-The server listens on port `9618`.
-
-## 2. Where networking lives in the code
-
-Even though the repository has `include/axis/network/` and `src/network/` directories, the actual network logic currently lives inside:
-
-- `axis/include/axis/blockchain/blockchain.h`
-- `axis/src/blockchain/blockchain.cpp`
-
-This means `Blockchain` is both:
-
-- domain/state manager,
-- TCP protocol handler.
-
-## 3. Startup and listening
-
-Two global objects are defined in `axis/src/blockchain/blockchain.cpp`:
-
-```cpp
-asio::io_context context;
-asio::ip::tcp::acceptor acceptor(context, asio::ip::tcp::endpoint(asio::ip::tcp::v4(), 9618));
-```
-
-### What they do
-
-- `context` drives asynchronous I/O.
-- `acceptor` listens for incoming TCP connections.
-
-`Blockchain::setupConnection()` starts the accept loop and runs the event loop.
-
-## 4. Connection lifecycle
+## Architecture
 
 ```mermaid
-sequenceDiagram
-    participant Client
-    participant Acceptor
-    participant Socket
-    participant Blockchain
-
-    Client->>Acceptor: TCP connect
-    Acceptor->>Socket: accept connection
-    Acceptor->>Blockchain: spawn readMessage(socket)
-    Blockchain->>Socket: async_read size prefix
-    Blockchain->>Socket: async_read payload bytes
-    Blockchain->>Blockchain: handlePayload(...)
-    Blockchain->>Socket: async_write response
+graph TD
+    subgraph Server
+        A[main: Start acceptor]
+        A --> B[acceptor accepts TCP connection]
+        B --> C[co_spawn session coroutine]
+    end
+    subgraph Session
+        D[Read 9-byte header]
+        D --> E[Read payload_length bytes]
+        E --> F{Dispatch by MsgType}
+        F -->|GetUTXOs| G[on_get_utxos]
+        F -->|CreateTransaction| H[on_create_tx]
+        F -->|GetTx| I[on_get_tx]
+        F -->|GetMempoolTx| J[on_get_mempool_tx]
+        F -->|GetBlockRange| K[on_get_block_range]
+        F -->|Other| L[Ignore]
+    end
+    G --> M[SendUTXOs response]
+    H --> N[TransactionResponse]
+    I --> O[SendTx response]
+    J --> P[SendTx response]
+    K --> Q[SendBlockRange response]
 ```
 
-## 5. Accept flow
+## TCP server
 
-`Blockchain::acceptClient()` does the following:
+The server runs on **port 8080** by default (configurable via `set_port`).
 
-1. creates a new `shared_ptr<tcp::socket>`,
-2. calls `acceptor.async_accept(...)`,
-3. on success, logs a connection message,
-4. immediately schedules acceptance of the next client,
-5. spawns `readMessage(socket)` as a coroutine.
+```cpp
+class Server {
+    asio::io_context ctx_;
+    asio::ip::tcp::acceptor acceptor_;
+    Chain& chain_;
 
-### Why the socket is in `shared_ptr`
+    void start(uint16_t port);
+    asio::awaitable<void> session(asio::ip::tcp::socket sock);
+};
+```
 
-The socket must stay alive across asynchronous operations. Shared ownership avoids premature destruction while the coroutine still needs it.
+### Startup
 
-## 6. Read flow
+```cpp
+void Server::start(uint16_t port) {
+    auto endpoint = asio::ip::tcp::endpoint{
+        asio::ip::tcp::v4(), port};
+    acceptor_.open(endpoint.protocol());
+    acceptor_.set_option(asio::ip::tcp::acceptor::reuse_address(true));
+    acceptor_.bind(endpoint);
+    acceptor_.listen();
 
-`Blockchain::readMessage()` currently handles one message from a client.
+    // Spawn one coroutine per accepted connection
+    co_spawn(ctx_, do_accept(), asio::detached);
+    ctx_.run();
+}
+```
 
-### Exact behavior
+### Accept loop
 
-1. Read 4 bytes into `payloadSize`.
-2. Reject if `payloadSize < sizeof(PayloadType)`.
-3. Allocate a buffer of `payloadSize` bytes.
-4. Read exactly that many bytes.
-5. Extract `PayloadType` from the first bytes.
-6. Pass the remaining bytes to `handlePayload()`.
-7. If an exception occurs, log rejection.
+```cpp
+asio::awaitable<void> Server::do_accept() {
+    while (true) {
+        auto sock = co_await acceptor_.async_accept(
+            asio::use_awaitable);
+        co_spawn(ctx_, session(std::move(sock)), asio::detached);
+    }
+}
+```
 
-### Important implication
+Each accepted socket gets its own **session** coroutine. This is a
+stackful coroutine model: `co_await` suspends the coroutine without
+blocking the thread.
 
-The current implementation does not contain a loop to read many packets from the same connection. In practice, it behaves like a **single-request connection handler**.
+## Coroutines (C++20 `co_await`)
 
-## 7. Supported message types in practice
+Axis uses Asio's C++20 coroutine support. A coroutine is a function that
+uses `co_await` or `co_return`. It can suspend mid-execution without
+blocking the OS thread.
 
-The `PayloadType` enum contains more values than the server fully handles.
+### Thread model
 
-### Enum values declared
+There is a single I/O thread running `ctx_.run()`. All coroutines execute
+on this thread. When a coroutine `co_await`s an asynchronous operation, the
+thread is not blocked — it runs other coroutines while waiting.
 
-- `GetBalance`
-- `GetBlock`
-- `GetTransaction`
-- `GetUTXO`
-- `GetUTXOs`
-- `BalanceResponse`
-- `BlockResponse`
-- `TransactionResponse`
-- `UTXOResponse`
-- `UTXOsResponse`
-- `CreateTransaction`
+This means there is no concurrency: only one coroutine runs at a time on the
+single thread. The coroutine model simplifies code because:
 
-### Actually handled in `handlePayload()` right now
+1. No mutexes or locks needed
+2. Sequential-looking code for I/O operations
+3. No callback spaghetti
 
-- `GetUTXOs`
-- `CreateTransaction`
+### Reading from a socket
 
-### Mentioned but not implemented
+```cpp
+asio::awaitable<std::vector<uint8_t>> async_read(
+    asio::ip::tcp::socket& sock, size_t n) {
+    std::vector<uint8_t> buf(n);
+    co_await asio::async_read(sock,
+        asio::buffer(buf), asio::use_awaitable);
+    co_return buf;
+}
+```
 
-- `GetUTXO` case exists but the call is commented out
-- `GetBlock`, `GetTransaction`, `GetBalance` response paths are not implemented in the visible code
+The `co_await` suspends the session coroutine until exactly N bytes have
+been read. Meanwhile, other sessions' coroutines can proceed.
 
-This distinction is important for anyone writing a client.
+### Writing to a socket
 
-## 8. Coroutine behavior
+```cpp
+asio::awaitable<void> async_write(
+    asio::ip::tcp::socket& sock,
+    std::span<const uint8_t> data) {
+    co_await asio::async_write(sock,
+        asio::buffer(data.data(), data.size()),
+        asio::use_awaitable);
+}
+```
 
-The async methods use `asio::awaitable<void>` and `co_await`.
+## Session coroutine
 
-### Methods using coroutines
+The `session` function handles one TCP connection:
 
-- `sendPacket()`
-- `sendTransactionResponse()`
-- `readMessage()`
-- `handlePayload()`
-- `handleGetUTXOs()`
-- `handleCreateTransaction()`
+```cpp
+asio::awaitable<void> Server::session(
+    asio::ip::tcp::socket sock) {
+    try {
+        while (true) {
+            // 1. Read 9-byte header
+            auto header = co_await async_read(sock, 9);
+            Reader r{header};
 
-### Why coroutines are useful here
+            auto magic = r.take_u32();
+            if (magic != 0xDEADBEEF) break;
 
-They make async code look more like straight-line code. Instead of deeply nested callbacks, the code reads top to bottom.
+            auto type = r.take_u8();
+            auto payload_len = r.take_u32_be();
 
-## 9. Error handling strategy
+            // 2. Read payload
+            auto payload = co_await async_read(sock, payload_len);
 
-### Packet parse / payload errors
+            // 3. Dispatch
+            switch (MsgType(type)) { ... }
+        }
+    } catch (const std::exception&) {
+        // Connection closed or error
+    }
+}
+```
 
-If the payload is malformed, the server:
+If the client disconnects, `async_read` throws, the catch block exits the
+session, and the socket is destroyed (RAII closes it).
 
-- logs rejection,
-- often sends `TransactionResponse` with `InvalidPayload` for `CreateTransaction`.
+## Message handlers
 
-### Socket/read errors
+### on_get_utxos
 
-Exceptions from async reads are caught in `readMessage()` and logged.
+Reads the 20-byte address from the payload, calls `chain_.get_utxos(addr)`,
+serializes the response, and sends it back with a `SendUTXOs` header.
 
-### Unsupported payload types
+```cpp
+// Response format:
+// [magic (4)] [SendUTXOs type (1)] [payload_len (4 BE)]
+// [varint count] [OutPoint + TxOutput]...
 
-`handlePayload()` logs an error.
+// Each OutPoint: [txid (32)] [index (4)]
+// Each TxOutput: [recipient (20)] [amount (8)]
+```
 
-## 10. Threading model
+### on_create_tx
 
-The visible code uses one global `asio::io_context` and does not start worker threads.
+Deserializes a `SignedTransaction`, validates it via `chain_.add_tx(...)`,
+and returns a `TransactionResponse`.
 
-### Practical consequence
+### on_get_tx / on_get_mempool_tx
 
-The node behaves like a single-threaded async server unless the process is expanded later.
+Reads a 32-byte txid, looks it up in the chain's UTXO or mempool, and
+returns a `SendTx` with the serialized transaction (or an empty response
+if not found).
 
-### Shared-state implication
+### on_get_block_range
 
-There are no mutexes around blockchain state. That is acceptable in a single-threaded event loop, but would need redesign if multiple threads start touching shared maps and vectors.
+Reads `start_range` (uint32) and `end_range` (uint32), fetches blocks
+from `chain_.get_block_range(start, end)`, serializes them, and returns a
+`SendBlockRange`.
 
-## 11. Request and response flow examples
+## Message sending helpers
 
-## `GetUTXOs`
+### send_payload
 
-Client sends address bytes.
-Server:
+Serializes any payload into the packet format:
 
-1. decodes the address,
-2. scans UTXO set,
-3. serializes matching references and total balance,
-4. sends `UTXOsResponse`.
+```cpp
+asio::awaitable<void> send_payload(
+    asio::ip::tcp::socket& sock,
+    MsgType type,
+    const std::vector<uint8_t>& payload) {
+    Writer w;
+    w.put_u32(MAGIC);          // 0xDEADBEEF
+    w.put_u8(static_cast<uint8_t>(type));
+    w.put_u32_be(payload.size());  // big-endian length
+    co_await async_write(sock, w.buf);   // header
+    co_await async_write(sock, payload); // body
+}
+```
 
-## `CreateTransaction`
+### send_txresponse
 
-Client sends:
+Specialized for `TransactionResponse` messages:
 
-- public key,
-- sender address,
-- receiver address,
-- amount,
-- timestamp,
-- inputs,
-- outputs,
-- signature.
+```cpp
+asio::awaitable<void> send_txresponse(
+    asio::ip::tcp::socket& sock,
+    bool accepted, TxError err,
+    const std::string& reason) {
+    Writer w;
+    w.put_u32(MAGIC);
+    w.put_u8(static_cast<uint8_t>(MsgType::TransactionResponse));
+    w.put_u32_be(4 + reason.size());  // payload: 1+1+2+reason
 
-Server:
+    Writer payload;
+    payload.put_u8(accepted ? 1 : 0);
+    payload.put_u8(static_cast<uint8_t>(err));
+    payload.put_u16(reason.size());
+    payload.put_bytes({(const uint8_t*)reason.data(), reason.size()});
 
-1. deserializes payload,
-2. verifies public-key-to-sender match,
-3. verifies inputs,
-4. verifies signature,
-5. checks mempool conflicts,
-6. persists to mempool DB,
-7. sends `TransactionResponse`.
+    co_await async_write(sock, w.buf);
+    co_await async_write(sock, payload.buf);
+}
+```
 
-## 12. Networking limitations
+## Future: peer-to-peer networking
 
-- no TLS,
-- no authentication beyond transaction signatures,
-- no peer protocol for block syncing,
-- no handshake/version negotiation,
-- no repeated packet loop per connection,
-- no backpressure or rate-limiting logic,
-- no explicit maximum packet size limit beyond available memory.
+Currently, Axis runs as a standalone node. There is no peer discovery, no
+handshake, no block relay, and no transaction relay. A future peer-to-peer
+layer would add:
 
-## 13. Advice for client implementers
-
-If you write a client for Axis:
-
-- open a TCP connection to port `9618`,
-- send exactly one framed packet per connection unless you verify broader behavior yourself,
-- encode integers exactly as the server expects on your platform assumptions,
-- read a framed response back,
-- do not assume all enum message types are supported.
-
-See [Packet protocol](packet_protocol.md) for exact layouts.
+1. **Handshake**: exchange version, genesis hash, and listening port
+2. **Block relay**: when a new block is validated, broadcast it to peers
+3. **Transaction relay**: forward mempool transactions to peers
+4. **Peer discovery**: maintain a list of known peers, periodically connect
+5. **Compact blocks**: send block headers first, fill in missing transactions
+   on demand (BIP152-style)

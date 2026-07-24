@@ -1,211 +1,225 @@
-# Block Lifecycle
+# Block lifecycle
 
-This document explains how blocks are created, loaded, verified, and stored in Axis.
+This document traces a block from creation through validation to chain
+inclusion. Note that Axis currently only creates the genesis block
+automatically — the full mining pipeline is not wired to a network message.
 
-## 1. Important context
-
-Axis contains a meaningful `Block` model and block verification helper logic, but it does **not** currently implement a complete mined-block ingestion workflow over the network.
-
-So this document distinguishes between:
-
-- **implemented lifecycle pieces**,
-- **conceptual future lifecycle pieces**.
-
-## 2. What a block is in Axis
-
-A block contains:
-
-- a header,
-- a list of transactions.
-
-The header is `BlockHeader`:
-
-- `previous_hash`
-- `hash`
-- `timestamp`
-- `nonce`
-- `merkleRoot`
-
-## 3. Block lifecycle overview
+## Lifecycle overview
 
 ```mermaid
-flowchart TD
-    A[Genesis or candidate block data] --> B[Assemble transactions]
-    B --> C[Compute Merkle root]
-    C --> D[Set previous hash, timestamp, nonce, hash]
-    D --> E[Verify block]
-    E --> F[Persist serialized block]
-    F --> G[Rebuild or update in-memory state]
+graph TD
+    A[Miner assembles block] --> B[Miner computes Merkle root]
+    B --> C[Miner mines: finds valid nonce]
+    C --> D[Block sent to chain]
+    D --> E[Chain::add_block validates]
+    E --> F{Valid?}
+    F -->|Yes| G[Block stored in LevelDB]
+    G --> H[For each transaction:]
+    H --> I[apply_tx: update UTXO set]
+    I --> J[Remove confirmed from mempool]
+    J --> K[Notify peers]:::future
+    F -->|No| L[Block rejected]
+
+    classDef future fill:#f5f5f5,stroke:#999,stroke-dasharray: 5 5
 ```
 
-## 4. Genesis block creation
+## Step 1: Block assembly (miner, future feature)
 
-The only fully explicit block creation path in current code is the genesis block.
+A miner would:
 
-### Where it happens
-
-- `Blockchain::createGenesisBlock()`
-
-### What it does
-
-1. Creates a zero `previousHash`.
-2. Loads a hardcoded block hash.
-3. Loads a hardcoded Merkle root.
-4. Loads a hardcoded recipient address.
-5. Creates a genesis reward `UTXO`.
-6. Builds a genesis transaction with fixed timestamp.
-7. Stores that transaction in `transactions`.
-8. Builds a `Block` containing the transaction.
-9. Overwrites the block header’s computed Merkle root with the hardcoded value.
-10. Pushes the block into memory.
-11. Saves it to `blocksDB`.
-12. Updates the UTXO set.
-
-### Why hardcoded values are used
-
-All nodes need the same genesis origin. Hardcoding ensures deterministic startup.
-
-## 5. Normal block construction
-
-The `Block` constructor:
+1. Create a coinbase transaction paying the block reward to their address
+2. Take some transactions from the mempool
+3. Assemble a `Block`:
 
 ```cpp
-Block(const Hash& ph, const Hash& bh, uint64_t t, uint64_t n, const std::vector<Transaction>& txs)
+std::vector<Transaction> txs;
+txs.push_back(coinbase);
+txs.insert(txs.end(), pool_txs.begin(), pool_txs.end());
+
+Block blk{chain.get_tip_hash(), std::move(txs), current_time, 0};
 ```
 
-stores the provided header values and computes the Merkle root from the transaction hashes.
+## Step 2: Merkle root computation
 
-### What it does not do
+The `Block` constructor automatically computes the Merkle root:
 
-It does not mine the block hash.
-It does not validate the block.
-It assumes the caller already chose appropriate values.
+```cpp
+Block::Block(Hash prev, std::vector<Transaction> txs, ...) {
+    transactions_ = std::move(txs);
+    header_.merkle_root = compute_block_merkle_root(transactions_);
+    // ...
+}
+```
 
-## 6. Block serialization
+The Merkle root algorithm:
 
-Blocks are serialized by `Block::serialize()`.
+```cpp
+Hash compute_block_merkle_root(const std::vector<Transaction>& txs) {
+    // 1. Get all txids
+    std::vector<Hash> hashes;
+    for (const auto& tx : txs)
+        hashes.push_back(tx.txid());
 
-Stored fields include:
+    // 2. Build the tree: pair and hash until one remains
+    while (hashes.size() > 1) {
+        if (hashes.size() % 2 == 1)
+            hashes.push_back(hashes.back()); // duplicate odd element
 
-- previous hash,
-- block hash,
-- Merkle root,
-- nonce,
-- timestamp,
-- transaction count,
-- each transaction’s byte size and serialized bytes.
+        std::vector<Hash> next;
+        for (size_t i = 0; i < hashes.size(); i += 2) {
+            Writer w;
+            w.put_hash(hashes[i]);
+            w.put_hash(hashes[i + 1]);
+            next.push_back(blake2b(w.buf));
+        }
+        hashes = std::move(next);
+    }
+    return hashes.empty() ? Hash{} : hashes[0];
+}
+```
 
-## 7. Block deserialization
+The Merkle root fingerprints every transaction in the block. If any
+transaction changes, the root changes, which changes the block hash, which
+breaks the chain link.
 
-Blocks are reconstructed by:
+## Step 3: Mining (finding a valid nonce)
 
-- `Block::Block(std::string_view rawBytes)`
+Mining is the process of finding a `nonce` such that the block hash is below
+the difficulty target:
 
-This reads the serialized header fields and rebuilds each transaction from embedded byte blobs.
+```cpp
+bool Block::verifyDifficulty() const {
+    Hash h = hash();   // hash of the 80-byte block header
+    // Check: h[0:3] must be 0x00 (difficulty = 3)
+    return h[0] == 0x00 && h[1] == 0x00 && h[2] == 0x00;
+}
+```
 
-## 8. Startup block loading
+The miner would iterate:
 
-At startup, `Blockchain::loadBlocks()` replays the block database.
+```cpp
+Block blk = /* assembled block */;
+while (!blk.verifyDifficulty()) {
+    blk.nonce()++;   // try a different nonce
+}
+```
 
-### Why replay matters
+On average, this requires 2^24 (16 million) attempts for difficulty 3.
+Bitcoin uses a much higher difficulty, requiring ~10^23 attempts per block.
 
-Axis does not persist the UTXO set directly. Instead, it recovers chain state by replaying transactions from stored blocks.
+## Step 4: Block validation (Chain::add_block)
 
-### Effects of loading a block
+This function is called when a client submits a mined block:
 
-For each block loaded:
+```mermaid
+graph TD
+    A[Start add_block] --> B[Block height == next expected?]
+    B -->|No| Z1[Return InvalidHeight]
+    B -->|Yes| C[prev_hash == tip hash?]
+    C -->|No| Z2[Return BadPreviousHash]
+    C -->|Yes| D[Block hash validity]
+    D --> E[Header hash == block hash?]
+    E -->|No| Z3[Return InvalidBlockHash]
+    E -->|Yes| F[Big-endian encode header hash]
+    F --> G[Hash <= target?]
+    G -->|No| Z4[Return HighHash]
+    G -->|Yes| H[Timestamp in window?]
+    H -->|> 2h in future| Z5[Return TimeTooFar]
+    H -->|<= prev timestamp| Z6[Return TimeTooOld]
+    H -->|OK| I[Signature valid for each tx]
+    I -->|No| Z7[Return BadSignature]
+    I -->|Yes| J[All inputs exist in UTXO set?]
+    J -->|No| Z8[Return MissingInputs]
+    J -->|Yes| K[Coinbase is first tx?]
+    K -->|No| Z9[Return InvalidPayload]
+    K -->|Yes| L[Coinbase has no inputs?]
+    L -->|No| Z9
+    L -->|Yes| M[apply all transactions]
+    M --> N[Persist block to LevelDB]
+    N --> O[Block added to chain]
+```
 
-- transactions are inserted into the confirmed `transactions` map,
-- `updateUTXO()` applies all spends and outputs,
-- block is appended to `blocks`,
-- block hash is indexed in `blocksMap`.
+### Validation checks in detail
 
-## 9. Block verification logic
+**1. Chain continuity**
+```cpp
+if (height_ != 0 && prev_hash_ != get_tip_hash())
+    return BlockError::BadPreviousHash;
+```
 
-The main helper is:
+**2. Block hash integrity**
+```cpp
+Hash computed = blk.hash();   // hash of the 80-byte header
+if (memcmp(computed.data(), blk_hash.data(), 32) != 0)
+    return BlockError::InvalidBlockHash;
+```
 
-- `Blockchain::verifyBlock(const Block& block)`
+**3. Proof of Work**
+```cpp
+// Encode hash as big-endian uint256 for comparison
+auto target = buildTarget(difficulty_);
+uint256_t hash_int = hash_to_uint256(block_hash);
+uint256_t target_int = hash_to_uint256(target);
+if (hash_int > target_int)
+    return BlockError::HighHash;
+```
 
-### What it checks
+**4. Timestamp sanity**
+```cpp
+auto now = time_since_epoch();
+if (blk.timestamp() > now + 7200)  // 2 hours in the future
+    return BlockError::TimeTooFar;
+if (height_ > 0 && blk.timestamp() <= get_tip().timestamp())
+    return BlockError::TimeTooOld;
+```
 
-1. block has at least one transaction,
-2. first transaction is a valid coinbase transaction,
-3. all later transactions already exist in the mempool,
-4. computed Merkle root matches header Merkle root,
-5. `previous_hash` matches the current chain tip,
-6. block hash satisfies difficulty target.
+**5. Transaction validation**
 
-### Why these checks exist
+Each non-coinbase transaction goes through the same validation as
+`Chain::add_tx` (ownership, signature, sufficient funds).
 
-- coinbase rules prevent arbitrary reward structure,
-- mempool membership assumes already-validated transactions,
-- Merkle root check ensures transaction list integrity,
-- previous-hash check enforces chain continuity,
-- difficulty check enforces proof-of-work policy.
+**6. Coinbase rules**
 
-## 10. Coinbase transaction rules
+The first transaction must be coinbase (no inputs). There is exactly one
+coinbase per block.
 
-`verifyCoinbaseTransaction()` accepts a transaction only if:
+**7. Applying to the UTXO set**
 
-- it has no inputs,
-- it has exactly one output,
-- output coins are less than or equal to `MINER_REWARD`.
+```cpp
+for (const auto& tx : blk.transactions()) {
+    for (const auto& in : tx.inputs)
+        utxo_.erase(in);        // spend inputs
+    uint32_t idx = 0;
+    for (const auto& out : tx.outputs) {
+        utxo_[OutPoint{tx.txid(), idx}] = out;  // create outputs
+        idx++;
+    }
+}
+```
 
-### Interpretation
+**8. Mempool cleanup**
+```cpp
+for (const auto& tx : blk.transactions()) {
+    pool_.erase(tx.txid());
+    for (const auto& in : tx.inputs)
+        pool_spent_.erase(in);
+}
+```
 
-This models block reward creation.
+## Step 5: Block storage
 
-### Limitation
+After validation, the block is persisted to LevelDB:
 
-There is no complete block acceptance pipeline that consumes such a verified block in the visible code.
+```cpp
+std::vector<uint8_t> raw = blk.serialize();
+std::string key = height_key(height);
+blocks_db_->Put(leveldb::WriteOptions{}, key, to_string(raw));
+```
 
-## 11. What is missing for a full block lifecycle
+Block height is stored as big-endian bytes for natural ordering (when
+iterating, blocks come out sorted by height).
 
-A complete blockchain node would usually also include:
+## Step 6: Chain tip
 
-- mining candidate assembly from mempool,
-- nonce search loop,
-- block broadcast to peers,
-- block reception from peers,
-- final block commit logic,
-- mempool cleanup after confirmation,
-- chain reorganization handling.
-
-Those are not fully implemented here.
-
-## 12. Example conceptual flow
-
-Imagine future code creates a new block:
-
-1. choose a coinbase reward transaction,
-2. choose valid mempool transactions,
-3. build the block object,
-4. compute its Merkle root,
-5. search nonce until hash satisfies target,
-6. call `verifyBlock()`,
-7. append to `blocks`,
-8. store in `blocksDB`,
-9. remove included transactions from mempool,
-10. update UTXO state.
-
-Axis currently implements pieces of this story, but not the entire end-to-end pipeline.
-
-## 13. Why this partial implementation is still useful
-
-Even without full mining support, Axis already demonstrates:
-
-- how blocks group transactions,
-- how Merkle roots commit to them,
-- how proof-of-work targets can be represented,
-- how persistent chain state can be replayed.
-
-## 14. Summary
-
-In current Axis reality:
-
-- genesis block creation is fully implemented,
-- block serialization/deserialization is implemented,
-- block verification helper logic exists,
-- full mined-block network workflow is not yet finished.
-
-That is the correct mental model for maintainers.
+The chain maintains a `tip_hash_` that always points to the most recent
+block. New blocks must reference this hash in their `prev_hash`.

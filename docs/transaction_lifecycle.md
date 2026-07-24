@@ -1,277 +1,234 @@
-# Transaction Lifecycle
+# Transaction lifecycle
 
-This document follows a transaction from idea to mempool acceptance in Axis.
+This document traces a transaction from creation through validation to
+(mined) confirmation.
 
-## 1. Big picture
-
-A transaction lifecycle answers this question:
-
-> How does a payment move from a user’s intent into node-validated pending state?
-
-In the current Axis implementation, the lifecycle ends at **mempool acceptance** because mined-block integration is not fully implemented as an external workflow.
-
-## 2. Lifecycle overview
+## Lifecycle overview
 
 ```mermaid
-flowchart TD
-    A[User wants to spend coins] --> B[Find spendable UTXOs]
-    B --> C[Construct transaction inputs and outputs]
-    C --> D[Compute transaction hash]
-    D --> E[Sign transaction hash]
-    E --> F[Send CreateTransaction packet]
-    F --> G[Server parses payload]
-    G --> H[Check sender matches public key]
-    H --> I[Verify inputs and ownership]
-    I --> J[Verify signature]
-    J --> K[Check mempool conflicts]
-    K --> L[Persist in pool DB]
-    L --> M[Add to in-memory mempool]
-    M --> N[Return TransactionResponse]
+graph TD
+    A[Wallet creates Transaction] --> B[Wallet signs txid]
+    B --> C[Wallet sends SignedTransaction over TCP]
+    C --> D[Server parses payload]
+    D --> E[Chain::add_tx validates]
+    E --> F{Valid?}
+    F -->|Yes| G[Stored in mempool]
+    F -->|No| H[Rejection sent to wallet]
+    G --> I[Waiting for block inclusion]:::future
+    I --> J[Miner includes in block]:::future
+    J --> K[Block added to chain]
+    K --> L[UTXO set updated]
+
+    classDef future fill:#f5f5f5,stroke:#999,stroke-dasharray: 5 5
 ```
 
-## 3. Step 1: Find spendable outputs
+> Note: The dashed steps (mempool → block) are not yet wired to a network
+> message in the current codebase. `verifyBlock()` exists as a helper, but
+> no client message can submit a mined block.
 
-Before a client can create a transaction, it needs UTXOs belonging to the sender.
+## Step 1: Transaction creation (in the wallet)
 
-The current node supports this through:
-
-- `GetUTXOs`
-
-The server scans the in-memory `utxo` map and returns references to all outputs owned by the given address.
-
-## 4. Step 2: Build inputs and outputs
-
-The client chooses which UTXOs to spend.
-
-### Inputs
-
-Each chosen UTXO becomes an `Input`:
-
-- previous transaction hash,
-- output index.
-
-### Outputs
-
-The client creates one or more new `UTXO` outputs.
-
-Typical example:
-
-- receiver gets payment,
-- sender gets change.
-
-## 5. Step 3: Set transaction fields
-
-The client must populate:
-
-- `sender`
-- `receiver`
-- `coins`
-- `inputs`
-- `outputs`
-- `timestamp`
-
-The timestamp matters because it participates in the hash.
-
-## 6. Step 4: Compute the transaction hash
-
-Axis computes the hash from:
-
-- sender,
-- receiver,
-- inputs,
-- outputs,
-- coin amount,
-- timestamp.
-
-The hash is computed by:
-
-- `Transaction::computeTransactionHash()`
-- or `Transaction::computeTransactionHash(uint64_t)` when a timestamp is supplied.
-
-### Why this matters
-
-The signature will later authenticate this exact hash.
-
-## 7. Step 5: Sign the transaction hash
-
-A client signs the transaction hash with the sender’s private key.
-
-The server later verifies that signature using the submitted public key.
-
-## 8. Step 6: Send `CreateTransaction`
-
-The client sends a packet containing:
-
-- public key,
-- sender address,
-- receiver address,
-- amount,
-- timestamp,
-- inputs,
-- outputs,
-- signature.
-
-See [Packet protocol](packet_protocol.md) for exact layout.
-
-## 9. Step 7: Server deserializes payload
-
-The server path is:
-
-- `readMessage()`
-- `handlePayload()`
-- `handleCreateTransaction()`
-- `deserializeCreateTransactionRequest()`
-
-The payload parser performs structural validation before business-rule validation.
-
-### Examples of rejected malformed payloads
-
-- impossible input count,
-- impossible output count,
-- missing trailing signature bytes,
-- trailing extra bytes.
-
-## 10. Step 8: Sender/public key consistency check
-
-After parsing, the server checks:
+The wallet creates a `Transaction`:
 
 ```cpp
-computeAddress(publicKey) == transaction.sender
+std::vector<OutPoint> inputs = {
+    {previous_txid_1, 0},   // reference the first output of a previous tx
+    {previous_txid_2, 3},   // reference the fourth output of another tx
+};
+
+std::vector<TxOutput> outputs = {
+    {bob_address, 30},       // send 30 to Bob
+    {alice_address, 69},     // send 69 back to Alice (change)
+};
+
+Transaction tx{std::move(inputs), std::move(outputs), current_timestamp};
 ```
 
-### Why this exists
+The constructor automatically computes the txid:
 
-This prevents identity spoofing.
+```cpp
+void Transaction::compute_hash() {
+    Writer w;
+    for (const auto& in : inputs) {
+        w.put_hash(in.txid);
+        w.put_u32(in.index);
+    }
+    for (const auto& out : outputs) {
+        w.put_addr(out.recipient);
+        w.put_u64(out.amount);
+    }
+    w.put_u64(timestamp);
+    txid_ = blake2b(w.buf);  // 32-byte hash
+}
+```
 
-A valid signature alone is not enough if the claimed sender address does not match the provided public key.
+**What goes into the txid:** all inputs, all outputs, and the timestamp.
+Changing any one of these produces a completely different txid.
 
-## 11. Step 9: Transaction acceptance checks
+## Step 2: Signing (in the wallet)
 
-The heavy validation work happens in `acceptTransaction()`.
+The wallet creates a `SignedTransaction` by signing the txid with the
+sender's private key:
 
-### 9.1 Amount must be non-zero
+```cpp
+Signature sig = sign_msg(private_key, tx.txid());
 
-If `tx.coins == 0`, reject with `InvalidAmount`.
+SignedTransaction st{
+    std::move(tx),
+    public_key,   // revealed so the network can verify
+    sig
+};
+```
 
-### 9.2 Input ownership and totals must be valid
+The signature proves: "I, the holder of this private key, authorize this
+exact transaction."
 
-`verifyInputs()` checks:
+## Step 3: Serialization and sending
 
-- inputs not empty,
-- outputs not empty,
-- no duplicate inputs inside the transaction,
-- each referenced UTXO exists,
-- each UTXO belongs to derived sender address,
-- summed inputs do not overflow,
-- summed outputs do not overflow,
-- total inputs >= total outputs.
+The wallet serializes the `SignedTransaction` into the wire format and sends
+it over TCP:
 
-If these fail, reject with `OwnershipVerificationFailed`.
+```
+[pubkey (32)] [timestamp (8)] [input_count (4)] [inputs...] [output_count (4)] [outputs...] [signature (64)]
+```
 
-### 9.3 Signature must verify
+Each input:   `[txid (32)] [index (4)]`
+Each output:  `[address (20)] [amount (8)]`
 
-`verifySignature()` uses libsodium Ed25519 verification.
+## Step 4: Server receives and parses
 
-If it fails, reject with `SignatureVerificationFailed`.
+The `Server::on_create_tx` coroutine:
 
-### 9.4 Transaction must not already be in mempool
+1. Reads the 4-byte payload size
+2. Reads the payload bytes
+3. Extracts the `MsgType` (must be `CreateTransaction = 12`)
+4. Parses the payload with `Reader`:
+   ```cpp
+   auto pubkey = r.take_pk();        // 32 bytes
+   auto timestamp = r.take_u64();     // 8 bytes
+   // input_count (4) + count * (32+4)
+   // output_count (4) + count * (20+8)
+   auto sig = r.take_sig();          // 64 bytes
+   ```
 
-Duplicate transaction hash rejects with `AlreadyInMempool`.
+## Step 5: Validation (Chain::add_tx)
 
-### 9.5 Inputs must not already be reserved by mempool
+This is the core validation function. It performs checks in order — each
+check is fast and eliminates invalid transactions early.
 
-If another pending transaction already uses one of the same inputs, reject with `InputReservedByMempool`.
+```mermaid
+graph TD
+    A[Start add_tx] --> B[Sum outputs > 0?]
+    B -->|No| Z1[Return ZeroAmount]
+    B -->|Yes| C[Inputs exist?]
+    C -->|No| Z2[Return InvalidPayload]
+    C -->|Yes| D[Derive address from pubkey]
+    D --> E[For each input:]
+    E --> F[UTXO exists?]
+    F -->|No| Z3[Return BadOwnership]
+    F -->|Yes| G[UTXO owner == derived address?]
+    G -->|No| Z3
+    G -->|Yes| H[Sum inputs]
+    H --> I[sum_in >= sum_out?]
+    I -->|No| Z3[Return BadOwnership]
+    I -->|Yes| J[Signature valid?]
+    J -->|No| Z4[Return BadSignature]
+    J -->|Yes| K[Already in mempool?]
+    K -->|Yes| Z5[Return Duplicate]
+    K -->|No| L[Any input already spent in pool?]
+    L -->|Yes| Z6[Return InputSpent]
+    L -->|No| M[Add to mempool]
+    M --> N[Persist to LevelDB]
+    N --> O[Return None]
+```
 
-## 12. Step 10: Persist and reserve
+### Validation checks in detail
 
-If the transaction passes validation:
+**1. Output amount validation**
+```cpp
+uint64_t sum_out = 0;
+for (const auto& out : tx.outputs) {
+    if (out.amount == 0)         // outputs must have positive value
+        return TxError::ZeroAmount;
+    if (sum_out > max - out.amount)   // prevent overflow
+        return TxError::InvalidPayload;
+    sum_out += out.amount;
+}
+if (sum_out == 0)                // at least one output
+    return TxError::ZeroAmount;
+```
 
-1. insert into `transactionsPool`,
-2. insert each input into `mempoolInputs`,
-3. save serialized transaction to `poolsDB`.
+**2. Input existence**
+```cpp
+if (tx.inputs.empty())           // non-coinbase must have inputs
+    return TxError::InvalidPayload;
+```
 
-This makes the transaction durable and prevents a pending double spend.
+**3. Ownership verification**
+```cpp
+Address sender = derive_address(pk);
+for (const auto& in : tx.inputs) {
+    auto it = utxo_.find(in);
+    if (it == utxo_.end())                 // does the UTXO exist?
+        return TxError::BadOwnership;
+    if (it->second.recipient != sender)     // do I own it?
+        return TxError::BadOwnership;
+    sum_in += it->second.amount;
+}
+if (sum_in < sum_out)                       // can I afford it?
+    return TxError::BadOwnership;
+```
 
-## 13. Step 11: Response to client
+**4. Signature verification**
+```cpp
+if (!verify_sig(pk, tx.txid(), sig))
+    return TxError::BadSignature;
+```
 
-The server returns `TransactionResponse`.
+The signature covers the txid, which covers all inputs, outputs, and the
+timestamp. This prevents any part of the transaction from being modified
+after signing.
 
-### Success example
+**5. Mempool checks**
+```cpp
+if (pool_.contains(tx.txid()))          // already in pool?
+    return TxError::Duplicate;
+for (const auto& in : tx.inputs)
+    if (pool_spent_.contains(in))         // input already claimed?
+        return TxError::InputSpent;
+```
 
-- `accepted = 1`
-- `errorCode = None`
-- `reason = "Transaction accepted"`
+**6. Persistence**
+```cpp
+// Mark inputs as spent in the pool
+for (const auto& in : tx.inputs)
+    pool_spent_[in] = in;
+pool_[tx.txid()] = tx;
 
-### Rejection example
+// Persist to LevelDB
+pool_db_->Put(key, tx.serialize());
+```
 
-- `accepted = 0`
-- `errorCode = SignatureVerificationFailed`
-- `reason = "Signature verification failed"`
+## Step 6: Response
 
-## 14. Example walk-through
+The server sends a `TransactionResponse`:
 
-Suppose Alice owns one UTXO worth 10 coins.
-She wants to send Bob 7 and keep 3 as change.
+```
+[accepted (1)] [error_code (1)] [reason_length (2)] [reason (N)]
+```
 
-### Client side
+- If accepted: `{1, 0, 9, "accepted"}`
+- If rejected: `{0, <code>, <len>, "<reason>"}`
 
-- input: Alice’s 10-coin UTXO
-- outputs:
-  - Bob: 7
-  - Alice: 3
-- amount field: 7
-- timestamp: chosen by client
-- hash transaction fields
-- sign hash with Alice’s private key
-- send packet
+## Step 7: Block inclusion (future)
 
-### Server side
-
-- parse all fields,
-- derive Alice’s address from public key,
-- confirm derived address matches `sender`,
-- confirm input exists and belongs to Alice,
-- confirm 10 >= 7 + 3,
-- verify signature,
-- reserve input in mempool,
-- persist transaction,
-- return accepted response.
-
-## 15. What does not happen yet in current code
-
-In a full blockchain system, the next steps would usually be:
-
-- broadcast transaction to peers,
-- select transaction for mining,
-- include it in a new block,
-- remove it from mempool once confirmed.
-
-Axis currently stops short of a full end-to-end mining and confirmation workflow in the visible codebase.
-
-## 16. Common pitfalls for contributors
-
-### Mistake: assuming `coins` alone defines payment correctness
-
-It does not. Outputs define the actual post-transaction distribution of value.
-
-### Mistake: forgetting transaction hash depends on timestamp
-
-If client and server disagree on timestamp, signature verification fails because the hash changes.
-
-### Mistake: ignoring mempool reservations
-
-Even if an input still exists in the UTXO set, Axis can reject it if another pending transaction already reserved it.
-
-## 17. Summary
-
-The transaction lifecycle in Axis is:
-
-- discover spendable outputs,
-- build a UTXO-style transaction,
-- hash it,
-- sign it,
-- submit it,
-- validate identity, ownership, and signature,
-- persist it in the mempool.
-
-That lifecycle is the most complete end-to-end workflow in the current node implementation.
+When a miner exists, it would:
+1. Take transactions from `pool_`
+2. Create a coinbase transaction (miner reward)
+3. Build a block
+4. Mine it (find a valid nonce)
+5. Call `Chain::add_block()` which would:
+   - Validate the block
+   - Apply each transaction to the UTXO set
+   - Remove confirmed transactions from the pool
+   - Persist the block to LevelDB

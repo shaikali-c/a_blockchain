@@ -1,312 +1,219 @@
 # Architecture
 
-This document explains the high-level architecture of Axis, how major modules interact, why the code is shaped this way, and what tradeoffs come with the current design.
+## High-level picture
 
-## 1. High-level view
-
-Axis is a single-process blockchain node foundation. It combines:
-
-- domain models for blocks and transactions,
-- in-memory state for chain, mempool, and UTXO set,
-- persistent key/value storage,
-- a binary TCP message protocol,
-- asynchronous socket handling using Asio coroutines.
-
-At a high level, the system has four layers:
-
-1. **Core utilities**: bytes, hashing helpers, address helpers, logging.
-2. **Domain model**: `Transaction`, `Input`, `UTXO`, `Block`.
-3. **State and orchestration**: `Blockchain`.
-4. **Persistence and I/O**: LevelDB and TCP sockets.
-
-## 2. Architecture diagram
+Axis has four layers. Each layer has a single responsibility and a clear
+interface.
 
 ```mermaid
-flowchart TD
-    Client[External TCP client] --> Packet[Binary packet protocol]
-    Packet --> Node[Blockchain singleton]
-    Node --> Mempool[transactionsPool + mempoolInputs]
-    Node --> UTXO[utxo set]
-    Node --> Chain[blocks + transactions + blocksMap]
-    Node --> BlocksDB[LevelDB blocks/]
-    Node --> PoolDB[LevelDB pool/]
-    Node --> Crypto[libsodium + Merkle helper]
-    Node --> Utils[BytesReader/BytesWriter + helpers]
-```
-
-## 3. Main modules and responsibilities
-
-## `core`
-
-### Responsibilities
-
-- define shared byte-oriented types like `Hash`, `Addr`, `PublicKey`, and `Signature`,
-- define packet types and packet framing,
-- provide serialization helpers,
-- provide hex conversion helpers,
-- provide address derivation,
-- parse UTXO keys,
-- provide simple logging.
-
-### Why it exists
-
-These concerns are needed by nearly every other module. Centralizing them avoids duplicated low-level code.
-
-## `blockchain`
-
-### Responsibilities
-
-- represent blocks and transactions,
-- compute transaction hashes,
-- validate transaction ownership and signatures,
-- maintain the mempool,
-- maintain the UTXO set,
-- load and persist state,
-- handle incoming network payloads.
-
-### Why it exists
-
-This is where the node’s business rules live.
-
-## `crypto`
-
-### Responsibilities
-
-- compute Merkle roots for transaction hash lists.
-
-### Why it exists
-
-A block needs a compact commitment to all included transactions. That commitment is the Merkle root.
-
-## `storage`
-
-### Responsibilities
-
-- open LevelDB databases,
-- save, load, and delete raw key/value pairs.
-
-### Why it exists
-
-It isolates persistence details from the rest of the code.
-
-## 4. Object ownership and lifetime
-
-## The `Blockchain` singleton
-
-The central architectural choice is the singleton `Blockchain` returned by `Blockchain::getInstance()`.
-
-### Ownership
-
-- It owns all in-memory chain state.
-- It owns both `DatabaseManager` instances.
-- It coordinates socket requests.
-
-### Lifetime
-
-- Constructed lazily on first call to `getInstance()`.
-- Lives until process exit.
-
-### Consequence
-
-This makes the node easy to initialize, but it also centralizes many responsibilities into one object.
-
-## Global Asio objects
-
-In `axis/src/blockchain/blockchain.cpp`, the following are global:
-
-- `asio::io_context context`
-- `asio::ip::tcp::acceptor acceptor`
-
-### Ownership and lifetime
-
-They are static-duration globals in that translation unit and effectively live for the entire process.
-
-### Tradeoff
-
-This simplifies setup, but makes testing and dependency injection harder.
-
-## Domain objects
-
-### `Transaction`
-
-- Usually created from request bytes or reconstructed from database bytes.
-- Stored by value in vectors and maps.
-
-### `Block`
-
-- Stored by value in `blocks`.
-- Rebuilt from serialized bytes during startup.
-
-### `UTXO`
-
-- Stored by value in the `utxo` map.
-
-## 5. In-memory state model
-
-The `Blockchain` object maintains several collections.
-
-| Member | Purpose |
-|---|---|
-| `blocks` | Ordered chain of blocks in memory |
-| `height` | Declared chain height field, not actively maintained in visible logic |
-| `difficulty` | Number of leading zero bytes required in target construction |
-| `target` | Proof-of-work threshold built from `difficulty` |
-| `transactionsPool` | Pending mempool transactions |
-| `transactions` | Transactions already loaded from blocks |
-| `mempoolInputs` | Tracks which UTXOs are reserved by pending mempool transactions |
-| `utxo` | Current spendable outputs |
-| `blocksMap` | Maps block hash hex string to block index |
-| `blocksDB` | Persistent block storage |
-| `poolsDB` | Persistent mempool storage |
-
-## 6. Data flow
-
-### Startup flow
-
-```mermaid
-sequenceDiagram
-    participant Main
-    participant Blockchain
-    participant BlocksDB
-    participant PoolDB
-
-    Main->>Blockchain: getInstance()
-    Blockchain->>BlocksDB: open blocks database
-    Blockchain->>PoolDB: open pool database
-    Blockchain->>BlocksDB: iterate all blocks
-    BlocksDB-->>Blockchain: serialized blocks
-    Blockchain->>Blockchain: rebuild transactions and UTXO set
-    Blockchain->>PoolDB: iterate mempool transactions
-    PoolDB-->>Blockchain: serialized transactions
-    Blockchain->>Blockchain: rebuild mempoolInputs
-    alt no blocks found
-        Blockchain->>Blockchain: createGenesisBlock()
-        Blockchain->>BlocksDB: save genesis block
+graph TB
+    subgraph Layer1["Layer 1 — Types & Utilities"]
+        types.h["types.h<br/>Writer, Reader, TxError"]
+        util.h["util.h<br/>logging, hex"]
     end
-    Main->>Blockchain: setupConnection()
+
+    subgraph Layer2["Layer 2 — Cryptography"]
+        crypto.h["crypto.h/cpp<br/>blake2b, Merkle, signatures, addresses"]
+    end
+
+    subgraph Layer3["Layer 3 — Blockchain Data Structures"]
+        tx.h["tx.h/cpp<br/>Transaction, OutPoint, TxOutput"]
+        block.h["block.h/cpp<br/>Block, BlockHeader"]
+    end
+
+    subgraph Layer4["Layer 4 — State & Networking"]
+        chain.h["chain.h/cpp<br/>Chain, UTXO set, mempool, persistence"]
+        net.h["net.h/cpp<br/>Server, TCP, message dispatch"]
+    end
+
+    main.cpp --> chain.h
+    main.cpp --> net.h
+
+    net.h --> chain.h
+    chain.h --> block.h
+    chain.h --> crypto.h
+    chain.h --> util.h
+    block.h --> tx.h
+    tx.h --> types.h
+    tx.h --> crypto.h
+    crypto.h --> types.h
+    util.h --> types.h
+
+    classDef layer1 fill:#e1f5fe,stroke:#01579b
+    classDef layer2 fill:#f3e5f5,stroke:#7b1fa2
+    classDef layer3 fill:#fff3e0,stroke:#e65100
+    classDef layer4 fill:#e8f5e9,stroke:#1b5e20
+    class types.h,util.h layer1
+    class crypto.h layer2
+    class tx.h,block.h layer3
+    class chain.h,net.h layer4
 ```
 
-### Transaction submission flow
+**Layer 1** has no project-specific dependencies. Everything depends on it.
+
+**Layer 2** depends only on Layer 1 (types) and libsodium.
+
+**Layer 3** builds on Layers 1 and 2 to define the core data structures.
+
+**Layer 4** implements stateful logic. `Chain` owns all state; `Server`
+delegates to `Chain` and never holds blockchain state itself.
+
+## Module responsibilities
+
+### `types.h` — Foundation types
+
+Defines the byte-array aliases (`Hash`, `Address`, `PublicKey`, `SecretKey`,
+`Signature`) and the `Writer`/`Reader` serialization helpers. Every other
+module includes this file.
+
+Think of this file as the vocabulary of the project. Once you know what a
+`Hash` is and how `Writer`/`Reader` work, you can understand every other
+file.
+
+### `util.h` — Utilities
+
+A tiny logging namespace (`logging::info`, `logging::err`, `logging::reject`)
+and hex conversion templates (`to_hex`, `from_hex`).
+
+### `crypto.h/cpp` — Cryptography
+
+Five pure functions:
+- `blake2b` — hash arbitrary bytes into a 32-byte digest
+- `compute_merkle_root` — build a Merkle tree from transaction hashes
+- `derive_address` — compute a 20-byte address from a 32-byte public key
+- `verify_sig` — check an Ed25519 signature
+- `sign_msg` — create an Ed25519 signature (available but not used in the
+  node — wallets call this)
+
+### `tx.h/cpp` — Transaction types
+
+Defines `OutPoint` (what a transaction input points to), `TxOutput` (where
+coins go), and `Transaction` (the core unit of value transfer). Also defines
+`SignedTransaction` (a transaction bundled with its public key and
+signature).
+
+`Transaction` is self-hashing: the constructor computes the `txid` from
+inputs, outputs, and timestamp.
+
+### `block.h/cpp` — Block types
+
+`BlockHeader` holds the chain-linking fields (previous hash, Merkle root,
+timestamp, nonce). `Block` bundles a header with a list of transactions.
+Like `Transaction`, `Block` is self-hashing.
+
+### `chain.h/cpp` — Blockchain state
+
+The `Chain` class is the heart of the project. It owns:
+
+| Member | Type | Purpose |
+|--------|------|---------|
+| `blocks_` | `vector<Block>` | All confirmed blocks in memory |
+| `utxo_` | `unordered_map<OutPoint, TxOutput>` | The UTXO set |
+| `pool_` | `unordered_map<Hash, Transaction>` | Pending (unconfirmed) transactions |
+| `pool_spent_` | `unordered_map<OutPoint, OutPoint>` | UTXOs already claimed by pool txs |
+| `blocks_db_` | `unique_ptr<leveldb::DB>` | Persistent block storage |
+| `pool_db_` | `unique_ptr<leveldb::DB>` | Persistent pool storage |
+
+It validates incoming transactions with `add_tx()` and answers UTXO queries
+with `get_utxos()`.
+
+### `net.h/cpp` — TCP server
+
+The `Server` class provides a single-threaded asynchronous TCP server using
+Asio coroutines. It accepts connections, reads one message per connection,
+dispatches to the appropriate handler, and sends a response.
+
+### `main.cpp` — Entry point
+
+Initializes libsodium, creates the `Chain` (which loads state from LevelDB
+and creates the genesis block if needed), creates a `Server` bound to the
+chain, and starts the event loop.
+
+## Data flow
+
+### Transaction submission
 
 ```mermaid
 sequenceDiagram
-    participant Client
-    participant Socket
-    participant Blockchain
-    participant PoolDB
+    participant C as Client (wallet)
+    participant S as Server
+    participant H as handle_msg
+    participant O as on_create_tx
+    participant N as Chain::add_tx
 
-    Client->>Socket: CreateTransaction packet
-    Socket->>Blockchain: handleCreateTransaction(payload)
-    Blockchain->>Blockchain: deserialize payload
-    Blockchain->>Blockchain: sender/publicKey match check
-    Blockchain->>Blockchain: verify inputs
-    Blockchain->>Blockchain: verify signature
-    Blockchain->>Blockchain: check mempool duplicates
-    Blockchain->>PoolDB: save serialized transaction
-    Blockchain-->>Client: TransactionResponse
+    C->>S: TCP connect
+    C->>S: CreateTransaction packet
+    S->>H: readMessage → handle_msg
+    H->>O: MsgType::CreateTransaction
+    O->>O: Parse payload → SignedTransaction
+    O->>N: add_tx(signed_tx)
+    N->>N: Validate inputs, sums, signature
+    N->>N: Check pool for duplicates
+    N->>N: Persist to pool LevelDB
+    N-->>O: TxError::None or error code
+    O->>S: serialize_tx_response
+    S->>C: TransactionResponse packet
+    C->>S: TCP disconnect
 ```
 
-## 7. Control flow
-
-Axis uses two main control styles:
-
-- **synchronous control** for local data processing and database access,
-- **asynchronous control** for network I/O.
-
-### Synchronous areas
-
-- transaction verification,
-- serialization/deserialization,
-- UTXO updates,
-- LevelDB reads/writes.
-
-### Asynchronous areas
-
-- accepting TCP clients,
-- reading packet bytes,
-- writing response packets.
-
-The coroutine entry points are the `asio::awaitable<void>` methods in `Blockchain`.
-
-## 8. Module dependencies
+### UTXO query
 
 ```mermaid
-flowchart LR
-    Main[main.cpp] --> Blockchain
-    Blockchain --> Block
-    Blockchain --> Transaction
-    Blockchain --> Common
-    Blockchain --> DatabaseManager
-    Blockchain --> Cryptography
-    Blockchain --> Logger
-    Transaction --> Common
-    Block --> Transaction
-    Block --> Cryptography
-    Cryptography --> Common
+sequenceDiagram
+    participant C as Client
+    participant S as Server
+    participant H as handle_msg
+    participant G as on_get_utxos
+    participant N as Chain::get_utxos
+
+    C->>S: TCP connect
+    C->>S: GetUTXOs packet (20-byte address)
+    S->>H: handle_msg
+    H->>G: MsgType::GetUTXOs
+    G->>N: get_utxos(address, outpoints, total)
+    N->>N: Iterate utxo_ map, match by address
+    N-->>G: outpoints, total
+    G->>S: serialize_utxo_response
+    S->>C: UTXOsResponse packet
 ```
 
-## 9. Why this architecture was likely chosen
+## Ownership and lifetimes
 
-This codebase favors **clarity and directness** over abstraction depth.
+- The `Chain` object lives in `main()` and outlives the `Server` (declared
+  first, destroyed last).
+- `Chain` owns all blocks (in `blocks_`), the UTXO set, and the pool.
+- `Chain` owns the LevelDB database handles (`blocks_db_`, `pool_db_`).
+- `Server` holds a reference to `Chain` — it does not own any blockchain
+  state.
+- Each TCP connection creates a `shared_ptr<socket>` that lives until the
+  coroutine completes.
+- `Writer` and `Reader` are stack-allocated, short-lived objects used
+  during serialization and deserialization.
 
-### Benefits
+## Why this architecture?
 
-- easy to trace end-to-end behavior,
-- small number of files,
-- low conceptual overhead,
-- straightforward serialization logic,
-- minimal class hierarchy.
+**Single Chain instance.** There is exactly one blockchain. A singleton-like
+design (created in `main()`, passed by reference) avoids global state while
+keeping the code simple.
 
-### Tradeoffs
+**No database abstraction layer.** LevelDB is used directly via its C++ API.
+A wrapper would add complexity without benefit at this scale.
 
-- `Blockchain` is a large “god object” with many responsibilities,
-- global networking state reduces modularity,
-- several protocol message types exist but are not fully implemented,
-- manual binary formats require careful compatibility discipline,
-- no explicit concurrency control protects shared state if future threading is added.
+**No virtual interfaces.** Every dependency is concrete. This is a deliberate
+choice: virtual dispatch adds cost and complexity with no payoff when there
+is exactly one implementation of each concept.
 
-## 10. Architectural strengths
+**Coroutines for networking.** Asio's C++20 coroutine support (`co_await`,
+`co_spawn`) makes asynchronous code read like synchronous code. The
+connection handler is a single linear function rather than a chain of
+callbacks.
 
-### Good fit for educational code
+## Tradeoffs
 
-The system makes important blockchain ideas visible:
-
-- UTXO accounting,
-- transaction hashing,
-- Merkle commitments,
-- signature verification,
-- mempool double-spend prevention,
-- persistent state reconstruction.
-
-### Simple persistence story
-
-Storing blocks and mempool transactions as serialized blobs is easy to understand.
-
-## 11. Architectural weaknesses and risks
-
-### Networking is embedded in `Blockchain`
-
-This makes the central class harder to test and expand.
-
-### Serialization is architecture-dependent in places
-
-Using raw `memcpy` and native numeric layouts can create cross-platform compatibility issues. See [Serialization](serialization.md).
-
-### Block acceptance path is incomplete
-
-There is block verification logic, but no fully implemented network path that accepts and commits mined blocks.
-
-### State recovery relies on replaying blocks
-n
-The node reconstructs UTXO state by replaying stored transactions from blocks, which is simple but may become slow at scale.
-
-## 12. Recommended future architectural refactors
-
-If the project grows, strong next steps would be:
-
-1. split network handlers into a separate protocol module,
-2. create dedicated mempool and UTXO manager classes,
-3. standardize serialization on fixed-width integer encoding,
-4. introduce explicit chain-state persistence rather than replay-only recovery,
-5. separate validation rules from transport logic,
-6. add a miner component if block production is desired.
+| Decision | Benefit | Cost |
+|----------|---------|------|
+| All blocks in memory | Simple, fast access | Doesn't scale beyond ~100K blocks |
+| Rebuild UTXO from blocks on startup | No checkpoint needed | Startup gets slower as chain grows |
+| One message per connection | Simple protocol | No persistent connection |
+| Host byte order in serialization | Fast on x86 | Not portable to big-endian |
+| No miner | Keeps codebase minimal | Core blockchain feature missing |

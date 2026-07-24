@@ -1,230 +1,185 @@
-# Project Structure
+# Project structure
 
-This document explains every important directory in the repository, why it exists, and how its contents relate to the rest of the system.
+## Directory layout
 
-## Top-level layout
-
-```text
+```
 axis/
-├── blocks/
-├── build/
-├── docs/
+├── CMakeLists.txt              # Top-level build system
+├── README.md                   # Quick-start guide
+├── docs/                       # Full documentation suite
+│   ├── README.md               # Documentation index
+│   ├── architecture.md         # High-level architecture
+│   ├── blockchain.md           # Blockchain concepts explained
+│   ├── project_structure.md    # This file
+│   ├── getting_started.md      # Build + run guide
+│   ├── transaction_lifecycle.md
+│   ├── block_lifecycle.md
+│   ├── utxo_model.md
+│   ├── serialization.md
+│   ├── packet_protocol.md
+│   ├── database.md
+│   ├── cryptography.md
+│   ├── network.md
+│   ├── class_reference.md
+│   ├── function_reference.md
+│   ├── developer_guide.md
+│   ├── design_decisions.md
+│   ├── faq.md
+│   └── glossary.md
 ├── include/
-├── pool/
-├── screenshots/
+│   └── axis/
+│       ├── types.h     # Fundamental types: Hash, Address, OutPoint, etc.
+│       ├── util.h      # Utility: time_since_epoch, hex formatting
+│       ├── crypto.h    # Crypto API: blake2b, sign, verify, derive_address
+│       ├── tx.h        # Transaction, SignedTransaction
+│       ├── block.h     # Block
+│       ├── chain.h     # Chain: blocks, UTXO set, mempool, validation
+│       └── net.h       # Server: TCP, coroutines, message dispatch
 ├── src/
+│   ├── crypto.cpp      # Crypto implementations (libsodium wrappers)
+│   ├── tx.cpp          # Transaction serialization + hash computation
+│   ├── block.cpp       # Block serialization + hash + Merkle tree
+│   ├── chain.cpp       # Chain: genesis, validation, storage, UTXO
+│   ├── net.cpp         # Server: accept, session, message handlers
+│   └── main.cpp        # Entry point: parse args, start chain + server
 ├── tests/
-├── CMakeLists.txt
-├── CMakeSettings.json
-└── README.md
+│   └── core_serialization_tests.cpp  # 5 unit tests (serialization roundtrip)
+└── build/               # Build artifacts (generated)
 ```
 
-## `include/`
+## Layer diagram
 
-This directory contains public headers used by the project.
+```mermaid
+graph BT
+    subgraph "Layer 1: Foundation"
+        types_h[types.h<br/>Hash, Address, OutPoint,<br/>TxOutput, Writer, Reader]
+        util_h[util.h<br/>time_since_epoch]
+    end
+    subgraph "Layer 2: Cryptography"
+        crypto_h[crypto.h + crypto.cpp<br/>blake2b, sign, verify,<br/>derive_address, keygen]
+    end
+    subgraph "Layer 3: Data models"
+        tx_h[tx.h + tx.cpp<br/>Transaction, SignedTransaction,<br/>serialize, compute_hash]
+        block_h[block.h + block.cpp<br/>Block, Merkle root,<br/>serialize, verifyDifficulty]
+    end
+    subgraph "Layer 4: Business logic"
+        chain_h[chain.h + chain.cpp<br/>Chain, UTXO set, mempool,<br/>add_tx, add_block, validation]
+    end
+    subgraph "Layer 5: Network"
+        net_h[net.h + net.cpp<br/>Server, coroutine session,<br/>message handlers]
+    end
+    subgraph "Entry point"
+        main[main.cpp<br/>arg parsing, startup]
+    end
 
-### Why it exists
+    types_h --> crypto_h
+    util_h --> crypto_h
+    crypto_h --> tx_h
+    crypto_h --> block_h
+    types_h --> tx_h
+    types_h --> block_h
+    tx_h --> chain_h
+    block_h --> chain_h
+    chain_h --> net_h
+    net_h --> main
+```
 
-The project separates interface from implementation:
+## File responsibilities
 
-- headers in `include/` describe types, function signatures, and reusable declarations,
-- source files in `src/` define behavior.
+### `include/axis/types.h`
 
-This is a conventional C++ layout that makes it easier to understand module boundaries.
+The lowest layer. No project includes, only standard library (`<array>`,
+`<cstdint>`, `<vector>`, `<functional>`, `<cstring>`, `<span>`).
 
-## `include/axis/`
+Defines:
+- `Hash` (`std::array<uint8_t, 32>`)
+- `Address` (`std::array<uint8_t, 20>`)
+- `OutPoint` (txid + index)
+- `TxOutput` (recipient + amount)
+- `Writer` / `Reader` (serialization helpers)
+- `HashHasher` (for using `Hash` in `unordered_map`)
 
-This is the project namespace area for public headers.
+### `include/axis/util.h`
 
-### Subdirectories
+Utility functions:
+- `time_since_epoch()` — current Unix timestamp as `uint64_t`
+- `hash_to_hex()` — debug hex formatting for hashes
 
-#### `include/axis/blockchain/`
+### `include/axis/crypto.h` + `src/crypto.cpp`
 
-Contains the main blockchain domain types:
+Thin wrappers around libsodium:
+- `blake2b` — hash arbitrary bytes
+- `generate_keypair` — Ed25519 key generation
+- `sign_msg` — Ed25519 signing
+- `verify_sig` — Ed25519 verification
+- `derive_address` — 20-byte hash of public key
 
-- `block.h`
-- `blockchain.h`
-- `transaction.h`
+### `include/axis/tx.h` + `src/tx.cpp`
 
-These files define the most important business objects in the system.
+Transaction data structures and serialization:
+- `Transaction` — inputs, outputs, timestamp, txid
+- `SignedTransaction` — transaction + public key + signature
+- `TxError` — error codes for transaction validation
+- Serialization methods and hash computation
 
-#### `include/axis/core/`
+### `include/axis/block.h` + `src/block.cpp`
 
-Contains shared helpers used by multiple modules:
+Block data structure and helpers:
+- `Block` — header (prev_hash, merkle_root, timestamp, nonce, version) + transactions
+- `BlockError` — error codes for block validation
+- `compute_block_merkle_root` — build Merkle tree from transactions
+- `verifyDifficulty` — check Proof of Work
+- Serialization and hash computation
 
-- `common.h`
-- `logger.h`
+### `include/axis/chain.h` + `src/chain.cpp`
 
-This is the project’s utility layer.
+The core of the node:
+- `Chain` — owns blocks, UTXO set, mempool, two LevelDB databases
+- `add_tx` — validate and store a pending transaction
+- `add_block` — validate and apply a mined block
+- `get_utxos` — query UTXO set by address
+- `get_tx` — lookup transaction by txid
+- Genesis block creation
+- Database persistence and startup reload
 
-#### `include/axis/crypto/`
+### `include/axis/net.h` + `src/net.cpp`
 
-Contains cryptographic helpers:
-
-- `cryptography.h`
-
-Right now this layer is very small and mostly provides Merkle root calculation.
-
-#### `include/axis/storage/`
-
-Contains persistence abstractions:
-
-- `database_manager.h`
-
-This wraps LevelDB usage behind a small C++ class.
-
-#### `include/axis/network/`
-
-This directory exists but does not currently contain public headers in the checked repository snapshot.
-
-### Why that matters
-
-It suggests the architecture anticipated a more explicit networking module, but most network logic currently lives inside `Blockchain` instead.
-
-## `src/`
-
-Contains implementation files.
+TCP server with C++20 coroutines:
+- `Server` — Asio-based TCP server
+- `session` — per-connection coroutine, reads packets and dispatches
+- Message handlers: `on_get_utxos`, `on_create_tx`, `on_get_tx`, etc.
+- `send_payload`, `send_txresponse` — response helpers
 
 ### `src/main.cpp`
 
-Program entry point. It initializes libsodium and starts the blockchain service.
+Entry point:
+- Parses `--help` flag
+- Creates `Chain` (loads from disk or creates genesis)
+- Creates and starts `Server` on port 8080
+- Runs the Asio event loop
 
-### `src/blockchain/`
+### `tests/core_serialization_tests.cpp`
 
-Implements the core domain logic:
+Five unit tests using the `axis_core` library:
+1. Transaction serialization roundtrip
+2. Block serialization roundtrip
+3. UTXO query returns expected count and value
+4. Transaction signature validation passes
+5. Transaction with bad signature is rejected
 
-- `block.cpp`: block construction and serialization,
-- `blockchain.cpp`: node state, validation, persistence orchestration, and TCP handlers,
-- `transaction.cpp`: transaction hashing and serialization.
+## Include graph (no cycles)
 
-This is the heart of the application.
-
-### `src/core/`
-
-Implements shared utilities:
-
-- `common.cpp`: address derivation, hashing helpers, UTXO key parsing,
-- `logger.cpp`: simple console logging.
-
-### `src/crypto/`
-
-Implements `computeMerkleRoot()` in `cryptography.cpp`.
-
-### `src/storage/`
-
-Implements `DatabaseManager` in `database_manager.cpp`.
-
-### `src/network/`
-
-This directory exists but is empty in the current source tree.
-
-Again, this indicates a planned but not yet separated networking layer.
-
-### `src/pch.cpp`
-
-Supports the project’s precompiled-header build setup.
-
-## `tests/`
-
-Contains automated tests.
-
-### Current contents
-
-- `core_serialization_tests.cpp`
-
-### What it covers
-
-- transaction serialization/deserialization round-trip,
-- block serialization/deserialization round-trip,
-- rejection of malformed empty transaction input during deserialization.
-
-### What it does not cover
-
-- networking,
-- signature validation,
-- database recovery,
-- mempool behavior,
-- block validation,
-- concurrency.
-
-## `docs/`
-
-Contains project documentation for contributors and maintainers.
-
-This folder is the human-facing knowledge base of the repository.
-
-## `blocks/`
-
-Runtime LevelDB database directory for persisted blocks.
-
-### Why it exists
-
-Blocks must survive process restarts. This directory is the node’s long-term chain storage.
-
-### Important note
-
-This is runtime state, not source code. Do not treat it like hand-edited project content.
-
-## `pool/`
-
-Runtime LevelDB database directory for persisted mempool transactions.
-
-### Why it exists
-
-Pending transactions are saved so they can survive process restart.
-
-### Design implication
-
-Axis treats the mempool as persistent state, not purely in-memory cache.
-
-## `build/`
-
-Generated build artifacts.
-
-### Why it exists
-
-CMake writes build system output here. This directory should not be considered part of the source architecture.
-
-## `screenshots/`
-
-Appears to exist for visual assets or examples, but it is not part of the runtime code path.
-
-## Build configuration files
-
-### `CMakeLists.txt`
-
-Defines:
-
-- language standard,
-- dependencies,
-- library target `axis_core`,
-- executable target `blockchain_tx`,
-- test target `axis_core_tests`.
-
-### `CMakeSettings.json`
-
-IDE/build configuration support.
-
-## Relationship between folders
-
-```mermaid
-flowchart TD
-    A[include/] --> B[src/]
-    B --> C[build/blockchain_tx]
-    B --> D[tests/]
-    C --> E[blocks/ LevelDB]
-    C --> F[pool/ LevelDB]
-    G[docs/] --> H[Contributors]
+```
+types.h (no project includes)
+util.h (no project includes)
+crypto.h → types.h
+tx.h → types.h, crypto.h
+block.h → types.h, tx.h
+chain.h → types.h, crypto.h, tx.h, block.h, util.h
+net.h → types.h, chain.h
+main.cpp → chain.h, net.h
 ```
 
-## Where to look for common tasks
-
-| Task | Primary location |
-|---|---|
-| Understand startup | `axis/src/main.cpp` |
-| Understand chain state | `axis/include/axis/blockchain/blockchain.h` and `axis/src/blockchain/blockchain.cpp` |
-| Understand transactions | `axis/include/axis/blockchain/transaction.h` and `axis/src/blockchain/transaction.cpp` |
-| Understand serialization | `axis/include/axis/core/common.h`, `axis/src/blockchain/*.cpp` |
-| Understand persistence | `axis/include/axis/storage/database_manager.h`, `axis/src/storage/database_manager.cpp` |
-| Understand protocol | `axis/include/axis/core/common.h`, `axis/src/blockchain/blockchain.cpp` |
-| Understand tests | `axis/tests/core_serialization_tests.cpp` |
+This is a strict DAG. `chain.h` depends on `tx.h` and `block.h` (which
+depend on `types.h` and `crypto.h`). `net.h` depends on `chain.h`. No
+circular dependencies.

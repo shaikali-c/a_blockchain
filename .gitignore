@@ -10,6 +10,7 @@ axis_data/
 # Editor / IDE
 .vscode/
 .idea/
+.cache/
 *.swp
 *.swo
 *~

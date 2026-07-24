@@ -1,291 +1,369 @@
-# Blockchain Concepts Explained Through Axis
+# Blockchain concepts
 
-This document explains blockchain ideas from zero and ties each one directly to the Axis codebase.
+This document explains every blockchain concept used in Axis from first
+principles. You do not need any prior blockchain knowledge.
+
+---
 
 ## 1. What is a blockchain?
 
-A blockchain is a growing sequence of blocks.
+A **blockchain** is a growing list of records (called **blocks**) that are
+linked together using cryptography.
 
-Each block contains a batch of transactions plus a reference to the previous block. Because each block points backward, the blocks form a chain.
+Think of it as a notebook where:
+- Each page is a **block**
+- Every page contains a list of **transactions** (who sent what to whom)
+- Every page has a timestamp and a "fingerprint" of the previous page
+- Once written, a page cannot be changed without breaking the fingerprint
+  chain
 
-In Axis, the chain is stored in memory as:
+Because each block's fingerprint depends on the previous block, you cannot
+go back and change an old block without also changing every block after it.
+This makes the ledger tamper-evident.
 
-- `std::vector<Block> blocks`
+### Real-world analogy
 
-and persisted to LevelDB in `blocks/`.
+A blockchain is like a **wax-sealed letter chain**: you seal each letter with
+the seal from the previous letter. If someone breaks a seal, every seal
+after it is also broken, making tampering obvious.
 
-## 2. Why do blocks exist?
+---
 
-Without blocks, transactions would just be a loose pile of events. Blocks give the system:
+## 2. What is a block?
 
-- ordering,
-- grouping,
-- a history structure,
-- a place to attach proof-of-work.
+A **block** is a batch of transactions grouped together. Each block has:
 
-In Axis, a `Block` contains:
+| Field | Purpose |
+|-------|---------|
+| `prev_hash` | Fingerprint (hash) of the previous block — creates the chain |
+| `merkle_root` | Fingerprint of all transactions in this block |
+| `timestamp` | When this block was created |
+| `nonce` | A number miners change to find a valid block hash |
+| `version` | Format version for future upgrades |
+| `transactions` | The actual list of transactions |
 
-- `previous_hash`: links to the prior block,
-- `hash`: block identifier / proof target result,
-- `timestamp`,
-- `nonce`,
-- `merkleRoot`,
-- `transactions`.
+### Block header vs block body
 
-## 3. What is a transaction?
+The first five fields (prev_hash through version) form the **block header**.
+The header uniquely identifies the block. The **block body** is the list of
+transactions.
 
-A transaction describes movement of value.
+### The chain
 
-In UTXO-style systems, a transaction does two things:
-
-1. spends previous outputs,
-2. creates new outputs.
-
-In Axis, `Transaction` stores:
-
-- `inputs`: references to earlier outputs being spent,
-- `outputs`: newly created outputs,
-- `sender`,
-- `receiver`,
-- `coins`,
-- `timestamp`,
-- `transaction_hash`.
-
-## 4. What is a UTXO?
-
-`UTXO` stands for **Unspent Transaction Output**.
-
-Plain-English meaning: a chunk of value created by an earlier transaction that has not been spent yet.
-
-Think of it like a coin receipt. If the receipt has not been used yet, it can be used as input to a new payment.
-
-In Axis, a `UTXO` contains:
-
-- `owner`: the address allowed to spend it,
-- `coins`: the amount.
-
-The node stores the current spendable set in:
-
-- `std::unordered_map<std::string, UTXO> utxo`
-
-The key is a string like:
-
-```text
-<transaction_hash_hex>:<output_index>
+```mermaid
+graph LR
+    G[Genesis Block<br/>prev_hash=0000...<br/>height=0] --> B1[Block 1<br/>prev_hash=H0<br/>height=1]
+    B1 --> B2[Block 2<br/>prev_hash=H1<br/>height=2]
+    B2 --> B3[Block 3<br/>prev_hash=H2<br/>height=3]
 ```
 
-Example:
+Each block's `prev_hash` equals the hash of the block before it. This is
+what makes the blocks a **chain**.
 
-```text
-abcd1234...ff:0
+---
+
+## 3. What is a hash?
+
+A **hash** is a fixed-length fingerprint of arbitrary data. Given any input
+(like a sentence, a file, or a block of transactions), a hash function
+produces a short, unique-looking output.
+
+Axis uses **Blake2b**, a fast and secure hash function. It always produces
+**32 bytes** (256 bits) of output, regardless of input size.
+
+### Properties of a good hash function
+
+1. **Deterministic:** Same input always gives the same output
+2. **Fast to compute:** Given input, getting the hash is quick
+3. **One-way:** Given a hash, finding the input is practically impossible
+4. **Avalanche effect:** Changing one byte of input changes ~50% of output
+   bits
+5. **Collision-resistant:** Finding two inputs with the same hash is
+   practically impossible
+
+### Why hashes are essential for blockchain
+
+- **Block linking:** Each block stores the hash of the previous block. Any
+  change to a previous block changes its hash, breaking the chain.
+- **Transaction IDs:** Each transaction is identified by its hash (txid).
+- **Merkle trees:** Hashes are combined into a Merkle root to fingerprint
+  all transactions in a block efficiently.
+- **Mining:** The Proof of Work requires finding a block whose hash is below
+  a target value.
+
+### Example
+
+In Axis:
+```cpp
+// Hash a 32-byte hash (for Merkle tree internal nodes)
+Hash blake2b(std::span<const uint8_t> data);
 ```
 
-This means “output 0 of transaction `abcd1234...ff`”.
+The function calls libsodium's `crypto_generichash`, which implements
+Blake2b with a 32-byte output.
 
-## 5. Why are hashes used?
+---
 
-A hash is a fixed-size fingerprint of data.
+## 4. What is a Merkle tree?
 
-Hashes are useful because they let the system:
+A **Merkle tree** (or hash tree) is a way to combine many hashes into a
+single "root" hash. It allows you to prove that a specific transaction is
+included in a block without having to show all transactions.
 
-- identify transactions,
-- identify blocks,
-- commit to large data compactly,
-- compare values quickly,
-- make tampering visible.
+### How it works
 
-In Axis:
+```mermaid
+graph BT
+    R["Root: hash(H1 + H2)"] --> H1["hash(Tx1 + Tx2)"]
+    R --> H2["hash(Tx3 + Tx4)"]
+    H1 --> Tx1["Tx1 hash"]
+    H1 --> Tx2["Tx2 hash"]
+    H2 --> Tx3["Tx3 hash"]
+    H2 --> Tx4["Tx4 hash"]
+```
 
-- transaction hashes are computed from transaction content,
-- block headers store hashes,
-- Merkle roots are built from transaction hashes,
-- addresses are also derived using hashing.
+1. Take the hash of every transaction
+2. Pair them up and hash each pair together
+3. Repeat until a single hash remains — that's the Merkle root
 
-Axis uses libsodium’s generic hash function via `crypto_generichash`.
+If the number of hashes at any level is odd, the last hash is duplicated
+(paired with itself) to make it even.
 
-## 6. What is proof-of-work here?
+### Why Merkle roots exist
 
-Proof-of-work usually means a block hash must be smaller than a target.
+The Merkle root goes into the block header. This means the header alone
+fingerprints all transactions in the block. Without a Merkle root, the block
+header would need to list every transaction hash, making the header large.
 
-Axis uses a very simple target model:
+### In Axis
 
-- `difficulty` is a byte count,
-- `buildTarget()` fills the hash with `0xff`,
-- then sets the first `difficulty` bytes to `0x00`,
-- `verifyDifficulty()` checks `hash <= target`.
+```cpp
+// Called during Block construction
+header_.merkle_root = compute_block_merkle_root(transactions);
 
-That means the block hash must start with enough low bytes to be numerically small enough.
+// The function collects all txids and builds the tree
+static Hash compute_block_merkle_root(const std::vector<Transaction>& txs)
+```
 
-### Important limitation
+---
 
-The repository does **not** currently include a mining loop that searches for valid nonces. The validation rule exists, but automatic mining is not implemented in the visible code.
+## 5. What is a transaction?
 
-## 7. Why are blocks chained together?
+A **transaction** is a transfer of value. In Axis, a transaction:
 
-Every block stores the previous block’s hash.
+1. **Spends** one or more existing unspent outputs (inputs)
+2. **Creates** one or more new outputs
+3. Is identified by its **txid** (hash of the transaction data)
 
-That means changing an earlier block would break the link from the next block onward.
+### Transaction structure
 
-In Axis, block verification checks:
+```
+Transaction {
+    inputs:  [OutPoint, OutPoint, ...]   // what you're spending
+    outputs: [TxOutput, TxOutput, ...]   // where coins go
+    timestamp: uint64_t                  // when it was created
+}
+```
 
-- `block.blockHeader.previous_hash == blocks.back().blockHeader.hash`
+Each input is an **OutPoint**: the txid of a previous transaction and the
+index of a specific output in that transaction.
 
-That ensures a candidate block extends the current tip.
+Each output is a **TxOutput**: the recipient's address and the amount of
+coins to send.
 
-## 8. What is a Merkle tree?
+### Coinbase transaction
 
-A Merkle tree is a way to summarize many transaction hashes into one hash called the **Merkle root**.
+A **coinbase** transaction is a special transaction with no inputs. It
+creates coins out of thin air (the block reward). Every block starts with a
+coinbase transaction that pays the miner.
 
-Why do this?
+```cpp
+bool is_coinbase() const { return inputs.empty(); }
+```
 
-- A block can store one root instead of repeating full transaction contents in the header.
-- Any change in a transaction changes the root.
+---
 
-Axis computes Merkle roots in `Cryptography::computeMerkleRoot()`.
+## 6. What is a UTXO?
 
-### How Axis does it
+**UTXO** stands for **Unspent Transaction Output**. This is the fundamental
+accounting unit in a UTXO-based blockchain.
 
-1. Start with a list of transaction hashes.
-2. If the count is odd, duplicate the last one.
-3. Pair hashes two by two.
-4. Concatenate each pair.
-5. Hash the concatenation.
-6. Repeat until one hash remains.
+### How it works
 
-## 9. What are public and private keys?
+- The blockchain does not store account balances. It stores a set of UTXOs.
+- Each UTXO is an output from a transaction that has not yet been spent.
+- An address's balance is the sum of all UTXOs that list that address as
+  their recipient.
+- When you send coins, you destroy some UTXOs (your inputs) and create new
+  UTXOs (the outputs).
 
-A private key is a secret used to authorize spending.
+### Analogy
 
-A public key is the shareable counterpart others can use to verify signatures.
+UTXOs are like physical cash. You don't have a "balance" — you have a
+collection of bills and coins. To buy something, you hand over some bills
+(inputs) and receive change (new outputs).
 
-In Axis:
+### In Axis
 
-- `PublicKey` is a fixed-size byte array,
-- `SecretKey` type exists in headers,
-- signature verification is done with libsodium Ed25519.
+```cpp
+// The UTXO set is a map from OutPoint → TxOutput
+std::unordered_map<OutPoint, TxOutput> utxo_;
 
-### Important limitation
+// To spend: erase the OutPoint from the map
+utxo_.erase(in);  // spends an input
 
-The current repository verifies signatures, but does not provide a full wallet or key generation flow.
+// To create: insert a new OutPoint → TxOutput pair
+utxo_[OutPoint{tx.txid(), idx}] = out;  // creates a new UTXO
+```
 
-## 10. What is a digital signature?
+---
 
-A digital signature proves that someone holding the private key approved a message.
+## 7. What is mining?
 
-In Axis, the signed message is the transaction hash.
+**Mining** (or **Proof of Work**) is the process of finding a valid block
+hash. A valid block hash must be **below a target value**. The target
+determines how difficult mining is.
 
-The node checks signatures in:
+### How Proof of Work works
 
-- `Blockchain::verifySignature()`
+1. The miner assembles a block with transactions
+2. The miner computes the block hash
+3. If the hash is below the target, the block is valid
+4. If not, the miner changes the `nonce` field and tries again
 
-It calls:
+Bitcoin-style mining is not yet implemented in Axis (the genesis block was
+pre-mined). The `verifyDifficulty()` and `buildTarget()` code exists but
+mining is not wired to any network message.
 
-- `crypto_sign_verify_detached(...)`
+### Difficulty
 
-If verification fails, the transaction is rejected.
+**Difficulty** measures how hard it is to find a valid block. In Axis,
+difficulty is static (value 3), meaning the block hash must start with 3
+zero bytes:
 
-## 11. How do addresses work here?
+```cpp
+// Target: first 3 bytes are 0x00, rest are 0xFF
+target_[0] = 0x00;
+target_[1] = 0x00;
+target_[2] = 0x00;
+// target = 0x000000FFFF...FF
 
-An address is a shorter identifier derived from a public key.
+// A valid block hash must be <= this target
+```
 
-Axis computes an address by hashing the public key and keeping 20 bytes:
+### What is a nonce?
 
-- `Addr computeAddress(const PublicKey& pk)`
+A **nonce** is a number that miners change to get different block hashes.
+Since the hash function is deterministic, changing the nonce produces a
+completely different hash. The miner keeps trying different nonces until one
+produces a hash below the target.
 
-That means:
+---
 
-- the sender address is expected to be derivable from the submitted public key,
-- `handleCreateTransaction()` explicitly checks that relationship.
+## 8. What are digital signatures?
 
-This prevents a client from claiming “I am sender X” while submitting a different public key.
+A **digital signature** proves that a transaction was authorized by the
+owner of the coins being spent.
 
-## 12. How validation works in Axis
+### How it works
 
-When a transaction is submitted, the node validates several things.
+Each user has a pair of keys:
+- **Private key** (secret): known only to the user, used to sign
+- **Public key** (public): shared with everyone, used to verify
 
-### Step 1: payload must parse correctly
+To send coins:
+1. Create the transaction (inputs, outputs, timestamp)
+2. Hash it to get the txid
+3. Sign the txid with your private key
+4. Send the transaction + public key + signature to the network
 
-The binary packet must match the expected layout.
+To verify:
+1. Hash the transaction to get the txid
+2. Check that `verify(public_key, txid, signature) == true`
+3. Check that `derive_address(public_key) == input_utxo_owner`
 
-### Step 2: sender must match public key
+### Ed25519
 
-`computeAddress(publicKey)` must equal `transaction.sender`.
+Axis uses **Ed25519** signatures via libsodium. Ed25519 is a modern, fast,
+secure elliptic-curve signature scheme. A signature is 64 bytes.
 
-### Step 3: transaction amount must be non-zero
+### In Axis
 
-`tx.coins == 0` is rejected.
+```cpp
+// Verify a signature
+bool ok = crypto_sign_verify_detached(sig, msg, msg_len, pubkey) == 0;
+```
 
-### Step 4: inputs must be valid
+---
 
-The node checks that:
+## 9. How are addresses derived?
 
-- at least one input exists,
-- at least one output exists,
-- each referenced UTXO exists,
-- each referenced UTXO belongs to the derived sender address,
-- no input appears twice inside the same transaction,
-- summed inputs cover summed outputs,
-- arithmetic does not overflow.
+An **address** in Axis is a 20-byte hash of the public key. It identifies
+who can spend a UTXO.
 
-### Step 5: signature must verify
+```cpp
+// Address = Blake2b-160 of the public key
+Address derive_address(const PublicKey& pk) {
+    Address addr{};
+    crypto_generichash(addr.data(), addr.size(),
+                       pk.data(), pk.size(), nullptr, 0);
+    return addr;
+}
+```
 
-The signature must match the transaction hash and public key.
+This is a **hashing step**: you cannot reverse the address to find the
+public key. When someone sends you coins, they only need your address (20
+bytes), not your public key (32 bytes).
 
-### Step 6: mempool rules must pass
+When you want to spend coins, you reveal your public key, and the network
+verifies that `derive_address(pubkey)` matches the UTXO's recipient address.
 
-The node rejects:
+---
 
-- duplicate mempool transaction hashes,
-- inputs already reserved by another pending transaction.
+## 10. What is the genesis block?
 
-## 13. What is the mempool?
+The **genesis block** is the very first block in the blockchain. It has no
+previous block (`prev_hash` is all zeros). It contains the first coinbase
+transaction, which creates the initial coins in the system.
 
-The mempool is the waiting area for valid transactions that are not yet inside a block.
+In Axis, the genesis block is created automatically when the chain starts
+for the first time (when the LevelDB databases are empty):
 
-Axis stores it in two forms:
+```cpp
+void Chain::create_genesis() {
+    Hash prev{};
+    prev.fill(0);  // no previous block
 
-- in memory: `transactionsPool`,
-- on disk: LevelDB in `pool/`.
+    // Coinbase: 15,000,000 units to the genesis address
+    Transaction coinbase{{}, {{GENESIS_ADDR, 15 * UNITS}}, 1781545365};
 
-The extra `mempoolInputs` map reserves referenced inputs so two pending transactions cannot spend the same UTXO at the same time.
+    Block blk{prev, {std::move(coinbase)}, 1781545365, 31496};
+    // ...
+}
+```
 
-## 14. What is the genesis block?
+The genesis address is `f45a20e043b01f65638a46831ce79b8fec3f6737`. Since no
+one has the private key for this address, the genesis coins are permanently
+unspendable — they exist to demonstrate the UTXO model.
 
-The genesis block is the first block of the chain.
+---
 
-All nodes need a shared starting point.
+## 11. What is the mempool?
 
-In Axis:
+The **mempool** (memory pool) is a collection of pending (unconfirmed)
+transactions. When a wallet sends a transaction, it goes to the mempool
+first. Later, a miner would include mempool transactions in a new block.
 
-- the genesis block is hardcoded,
-- its block hash, Merkle root, timestamp, nonce, and reward output are fixed,
-- it is created only if the chain database is empty.
+In Axis, the mempool is stored both in memory and in a LevelDB database
+(`pool/`). If the node restarts, pending transactions are reloaded.
 
-This design makes node bootstrapping easy, because every fresh node starts from the same origin.
+```cpp
+std::unordered_map<Hash, Transaction, HashHasher> pool_;
+```
 
-## 15. How these ideas map directly to code
+The mempool also tracks which UTXOs have been spent by pending transactions
+to prevent double-spending within the pool:
 
-| Concept | Axis implementation |
-|---|---|
-| Blockchain | `std::vector<Block> blocks` |
-| Block | `Block` and `BlockHeader` |
-| Transaction | `Transaction` |
-| Spendable coin | `UTXO` |
-| Reference to spendable coin | `Input` |
-| Mempool | `transactionsPool` + `mempoolInputs` |
-| Block storage | LevelDB `blocks/` |
-| Mempool storage | LevelDB `pool/` |
-| Address derivation | `computeAddress()` |
-| Signature verification | `verifySignature()` |
-| Merkle root | `Cryptography::computeMerkleRoot()` |
-| Difficulty target | `buildTarget()` / `verifyDifficulty()` |
-
-## 16. Beginner summary
-
-If you remember only one thing, remember this:
-
-- A transaction spends older outputs and creates new outputs.
-- The UTXO set is the list of outputs that are still spendable.
-- A block groups transactions and links to the previous block.
-- Hashes and signatures let the node detect tampering and verify authorization.
-- Axis is a small educational implementation of those ideas.
+```cpp
+std::unordered_map<OutPoint, OutPoint> pool_spent_;
+```
