@@ -1,5 +1,5 @@
 {
-  "date": "2026-07-26T07:29:13.588737752+05:30",
+  "date": "2026-07-26T17:12:10.449022952+05:30",
   "data": {
     "/home/bubu/kode/axis/CMakeLists.txt": [
       {
@@ -223,6 +223,672 @@
         "kind": 6,
         "detail": "Variable",
         "documentation": "package: PkgConfig"
+      },
+      {
+        "label": "Crow_LIBRARIES",
+        "kind": 6,
+        "detail": "Variable",
+        "documentation": "package: Crow"
+      },
+      {
+        "label": "Crow_INCLUDE_DIRS",
+        "kind": 6,
+        "detail": "Variable",
+        "documentation": "package: Crow"
+      },
+      {
+        "label": "set_and_check",
+        "kind": 3,
+        "detail": "Function",
+        "documentation": "defined macro\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake"
+      },
+      {
+        "label": "check_required_components",
+        "kind": 3,
+        "detail": "Function",
+        "documentation": "defined macro\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake"
+      },
+      {
+        "label": "PACKAGE_PREFIX_DIR",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake"
+      },
+      {
+        "label": "${_var}",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake"
+      },
+      {
+        "label": "${_NAME}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake"
+      },
+      {
+        "label": "find_dependency",
+        "kind": 3,
+        "detail": "Command",
+        "documentation": "defined command from CMakeFindDependencyMacro.cmake\n.rst:\nCMakeFindDependencyMacro\n------------------------\n\nThis module provides a command implemented as a macro that finds dependency\nfor a package.\n\nLoad this module in a CMake package configuration file with:\n\n.. code-block:: cmake\n  :caption: ``FooConfig.cmake`` or ``foo-config.cmake``:\n\n  include(CMakeFindDependencyMacro)\n\n.. note::\n\n  This module is designed to be used in a :ref:`Package Configuration File\n  <Config File Packages>` (``<PackageName>Config.cmake``).\n\nCommands\n^^^^^^^^\n\nThis module provides the following command:\n\n.. command:: find_dependency\n\n  The ``find_dependency()`` macro wraps a :command:`find_package` call for\n  a package dependency:\n\n  .. code-block:: cmake\n\n    find_dependency(<dep> [...])\n\n  It is designed to be used in a\n  :ref:`Package Configuration File <Config File Packages>`\n  (``<PackageName>Config.cmake``).  ``find_dependency`` forwards the correct\n  parameters for ``QUIET`` and ``REQUIRED`` which were passed to\n  the original :command:`find_package` call.  Any additional arguments\n  specified are forwarded to :command:`find_package`.\n\n  If the dependency could not be found it sets an informative diagnostic\n  message and calls :command:`return` to end processing of the calling\n  package configuration file and return to the :command:`find_package`\n  command that loaded it.\n\n  .. note::\n\n    The call to :command:`return` makes this macro unsuitable to call\n    from :ref:`Find Modules`.\n\nPackage Dependency Search Optimizations\n^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^\n\nIf ``find_dependency`` is called with arguments identical to a previous\ncall in the same directory, perhaps due to diamond-shaped package\ndependencies, the underlying call to :command:`find_package` is optimized\nout.  This optimization is important to support large package dependency\ngraphs while avoiding a combinatorial explosion of repeated searches.\nHowever, the heuristic cannot account for ambient variables that\naffect package behavior, such as ``<PackageName>_USE_STATIC_LIBS``,\noffered by some packages.  Therefore package configuration files should\navoid setting such variables before their calls to ``find_dependency``.\n\n.. versionchanged:: 3.15\n  Previously, the underlying call to :command:`find_package` was always\n  optimized out if the package had already been found.  CMake 3.15\n  removed the optimization to support cases in which ``find_dependency``\n  call arguments request different components.\n\n.. versionchanged:: 3.26\n  The pre-3.15 optimization was restored, but with the above-described\n  heuristic to account for varying ``find_dependency`` call arguments.\n\n#"
+      },
+      {
+        "label": "__find_dependency_common",
+        "kind": 3,
+        "detail": "Function",
+        "documentation": "defined macro\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "__find_dependency_no_return",
+        "kind": 3,
+        "detail": "Function",
+        "documentation": "defined macro\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "find_dependency",
+        "kind": 3,
+        "detail": "Function",
+        "documentation": "defined macro\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "cmake_fd_quiet_arg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "cmake_fd_quiet_arg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "cmake_fd_required_arg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "cmake_fd_required_arg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "${dep}_LIBRARIES",
+        "kind": 6,
+        "detail": "Variable",
+        "documentation": "package: ${dep}"
+      },
+      {
+        "label": "${dep}_INCLUDE_DIRS",
+        "kind": 6,
+        "detail": "Variable",
+        "documentation": "package: ${dep}"
+      },
+      {
+        "label": "\"_CMAKE_${dep}_${cmake_fd_call_hash}_FOUND\"",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "${dep}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "${CMAKE_FIND_PACKAGE_NAME}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "${CMAKE_FIND_PACKAGE_NAME}_NOT_FOUND_MESSAGE",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "${CMAKE_FIND_PACKAGE_NAME}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/CMakeFindDependencyMacro.cmake"
+      },
+      {
+        "label": "CROW_INSTALLED_FEATURES",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake"
+      },
+      {
+        "label": "CROW_FEATURES",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake"
+      },
+      {
+        "label": "_CROW_ILL",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake"
+      },
+      {
+        "label": "_CROW_ICD",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake"
+      },
+      {
+        "label": "CMAKE_IMPORT_FILE_VERSION",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake\n\nCommands may need to know the format version."
+      },
+      {
+        "label": "_cmake_targets_defined",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake\n\nProtect against multiple inclusion, which would fail when already imported targets are added once more."
+      },
+      {
+        "label": "_cmake_targets_not_defined",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake"
+      },
+      {
+        "label": "_cmake_expected_targets",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake"
+      },
+      {
+        "label": "_IMPORT_PREFIX",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake"
+      },
+      {
+        "label": "_IMPORT_PREFIX",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake"
+      },
+      {
+        "label": "_IMPORT_PREFIX",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake\n\nCleanup temporary variables."
+      },
+      {
+        "label": "CMAKE_IMPORT_FILE_VERSION",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake\n\nCommands beyond this point should not need to know the version."
+      },
+      {
+        "label": "ASIO_FOUND",
+        "kind": 6,
+        "detail": "Variable",
+        "documentation": "defined var\nfrom: /usr/lib/cmake/Crow/Findasio.cmake"
+      },
+      {
+        "label": "ASIO_INCLUDE_DIR",
+        "kind": 6,
+        "detail": "Variable",
+        "documentation": "defined var\nfrom: /usr/lib/cmake/Crow/Findasio.cmake"
+      },
+      {
+        "label": "find_package_handle_standard_args",
+        "kind": 3,
+        "detail": "Command",
+        "documentation": "defined command from FindPackageHandleStandardArgs.cmake\n.rst:\nFindPackageHandleStandardArgs\n-----------------------------\n\nThis module provides commands intended for use in :ref:`Find Modules`\nimplementing :command:`find_package(<PackageName>)` calls.\n\nLoad this module in a CMake find module with:\n\n.. code-block:: cmake\n  :caption: ``FindFoo.cmake``\n\n  include(FindPackageHandleStandardArgs)\n\nCommands\n^^^^^^^^\n\nThis module provides the following commands:\n\n* :command:`find_package_handle_standard_args`\n* :command:`find_package_check_version`\n\n.. command:: find_package_handle_standard_args\n\n  Handles the ``REQUIRED``, ``QUIET`` and version-related arguments of\n  :command:`find_package`.\n\n  There are two signatures:\n\n  .. code-block:: cmake\n\n    find_package_handle_standard_args(\n      <PackageName>\n      (DEFAULT_MSG|<custom-failure-message>)\n      <required-vars>...\n    )\n\n    find_package_handle_standard_args(\n      <PackageName>\n      [REQUIRED_VARS <required-vars>...]\n      [VERSION_VAR <version-var>]\n      [HANDLE_VERSION_RANGE]\n      [HANDLE_COMPONENTS]\n      [CONFIG_MODE]\n      [NAME_MISMATCHED]\n      [REASON_FAILURE_MESSAGE <reason-failure-message>]\n      [FAIL_MESSAGE <custom-failure-message>]\n      [FOUND_VAR <result-var>] # Deprecated\n    )\n\n  This command sets the ``<PackageName>_FOUND`` variable to ``TRUE`` if all\n  the variables listed in ``<required-vars>...`` contain valid results\n  (e.g., valid filepaths) and any optional constraints are satisfied, and\n  ``FALSE`` otherwise.  A success or failure message may be displayed based\n  on the results and on whether the ``REQUIRED`` and/or ``QUIET`` option\n  was given to the :command:`find_package` call.\n\n  The arguments are:\n\n  ``<PackageName>``\n    The name of the package.  For example, as written in the\n    ``Find<PackageName>.cmake`` find module filename.\n\n  ``(DEFAULT_MSG|<custom-failure-message>)``\n    In the simple signature this specifies the failure message.\n    Use ``DEFAULT_MSG`` to ask for a default message to be computed\n    (recommended).  Not valid in the full signature.\n\n  ``REQUIRED_VARS <required-vars>...``\n    Specify the variables which are required for this package.\n    These may be named in the generated failure message asking the\n    user to set the missing variable values.  Therefore these should\n    typically be cache entries such as ``Foo_LIBRARY`` and not output\n    variables like ``Foo_LIBRARIES``.\n\n    .. versionchanged:: 3.18\n      If ``HANDLE_COMPONENTS`` is specified, this option can be omitted.\n\n  ``VERSION_VAR <version-var>``\n    Specify the name of a variable that holds the version of the package\n    that has been found.  This version will be checked against the\n    (potentially) specified required version given to the\n    :command:`find_package` call, including its ``EXACT`` option.\n    The default messages include information about the required\n    version and the version which has been actually found, both\n    if the version is ok or not.\n\n  ``HANDLE_VERSION_RANGE``\n    .. versionadded:: 3.19\n\n    Enable handling of a version range, if one is specified. Without this\n    option, a developer warning will be displayed if a version range is\n    specified.\n\n  ``HANDLE_COMPONENTS``\n    Enable handling of package components.  In this case, the command\n    will report which components have been found and which are missing,\n    and the ``<PackageName>_FOUND`` variable will be set to ``FALSE``\n    if any of the required components (i.e. not the ones listed after\n    the ``OPTIONAL_COMPONENTS`` option of :command:`find_package`) are\n    missing.\n\n  ``CONFIG_MODE``\n    Specify that the calling find module is a wrapper around a\n    call to ``find_package(<PackageName> NO_MODULE)``.  This implies\n    a ``VERSION_VAR`` value of ``<PackageName>_VERSION``.  The command\n    will automatically check whether the package configuration file\n    was found.\n\n  ``NAME_MISMATCHED``\n    .. versionadded:: 3.17\n\n    Indicate that the ``<PackageName>`` does not match the value of\n    :variable:`CMAKE_FIND_PACKAGE_NAME` variable. This is usually a mistake\n    and raises a warning, but it may be intentional for usage of the\n    command for components of a larger package.\n\n  ``REASON_FAILURE_MESSAGE <reason-failure-message>``\n    .. versionadded:: 3.16\n\n    Specify a custom message of the reason for the failure which will be\n    appended to the default generated message.\n\n  ``FAIL_MESSAGE <custom-failure-message>``\n    Specify a custom failure message instead of using the default\n    generated message.  Not recommended.\n\n  ``FOUND_VAR <result-var>``\n    .. deprecated:: 3.3\n      This option should no longer be used.\n\n    Specifies either ``<PackageName>_FOUND`` or ``<PACKAGENAME>_FOUND`` as the\n    result variable.  This exists only for backward compatibility with older\n    versions of CMake and is now ignored.  Result variables of both names are\n    now always set for compatibility also with or without this option.\n\n  .. note::\n\n    If ``<PackageName>`` does not match :variable:`CMAKE_FIND_PACKAGE_NAME`\n    for the calling module, a warning that there is a mismatch is given.  The\n    ``FPHSA_NAME_MISMATCHED`` variable may be set to bypass the warning if using\n    the old signature and the ``NAME_MISMATCHED`` argument using the new\n    signature.  To avoid forcing the caller to require newer versions of CMake\n    for usage, the variable's value will be used if defined when the\n    ``NAME_MISMATCHED`` argument is not passed for the new signature (but using\n    both is an error).\n\n.. command:: find_package_check_version\n\n  .. versionadded:: 3.19\n\n  Checks if a given version is valid against the version-related arguments\n  of :command:`find_package`:\n\n  .. code-block:: cmake\n\n    find_package_check_version(\n      <version>\n      <result-var>\n      [HANDLE_VERSION_RANGE]\n      [RESULT_MESSAGE_VARIABLE <message-var>]\n    )\n\n  The arguments are:\n\n  ``<version>``\n    The version string to check.\n\n  ``<result-var>``\n    Name of the result variable that will hold a boolean value giving the\n    result of the check.\n\n  ``HANDLE_VERSION_RANGE``\n    Enable handling of a version range, if one is specified.  Without this\n    option, a developer warning will be displayed if a version range is\n    specified.\n\n  ``RESULT_MESSAGE_VARIABLE <message-var>``\n    Specify a variable to get back a message describing the result of the check.\n\nExamples\n^^^^^^^^\n\nExamples: Full Signature\n\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\n\nExample for using a full signature of ``find_package_handle_standard_args()``:\n\n.. code-block:: cmake\n  :caption: ``FindLibArchive.cmake``\n\n  include(FindPackageHandleStandardArgs)\n  find_package_handle_standard_args(\n    LibArchive\n    REQUIRED_VARS LibArchive_LIBRARY LibArchive_INCLUDE_DIR\n    VERSION_VAR LibArchive_VERSION\n  )\n\nIn this case, the ``LibArchive`` package is considered to be found if\nboth ``LibArchive_LIBRARY`` and ``LibArchive_INCLUDE_DIR`` are valid.\nAlso the version of ``LibArchive`` will be checked by using the version\ncontained in ``LibArchive_VERSION``.  Since no ``FAIL_MESSAGE`` is given,\nthe default messages will be printed.\n\nAnother example for the full signature of\n``find_package_handle_standard_args()``:\n\n.. code-block:: cmake\n  :caption: ``FindAutomoc4.cmake``\n\n  find_package(Automoc4 QUIET NO_MODULE HINTS /opt/automoc4)\n\n  include(FindPackageHandleStandardArgs)\n  find_package_handle_standard_args(Automoc4 CONFIG_MODE)\n\nIn this case, a ``FindAutomoc4.cmake`` module wraps a call to\n``find_package(Automoc4 NO_MODULE)`` and adds an additional search\ndirectory for ``automoc4``.  Then the call to\n``find_package_handle_standard_args()`` produces a proper success/failure\nmessage.\n\nExample: Simple Signature\n\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\n\nExample for using a simple signature of ``find_package_handle_standard_args()``:\n\n.. code-block:: cmake\n  :caption: ``FindLibXml2.cmake``\n\n  include(FindPackageHandleStandardArgs)\n  find_package_handle_standard_args(\n    LibXml2\n    DEFAULT_MSG\n    LIBXML2_LIBRARY LIBXML2_INCLUDE_DIR\n  )\n\nIn this example, the ``LibXml2`` package is considered to be found if both\n``LIBXML2_LIBRARY`` and ``LIBXML2_INCLUDE_DIR`` variables are valid.  Then\nalso ``LibXml2_FOUND`` is set to ``TRUE``.  If it is not found and\n``REQUIRED`` was used, it fails with a :command:`message(FATAL_ERROR)`,\nindependent whether ``QUIET`` was used or not.  If it is found, success will\nbe reported, including the content of the first required variable specified\nin ``<required-vars>...``.  On repeated CMake runs, the same message will\nnot be printed again.\n\nExample: Checking Version\n\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\n\nExample for the ``find_package_check_version()`` usage:\n\n.. code-block:: cmake\n  :caption: ``FindFoo.cmake``\n\n  include(FindPackageHandleStandardArgs)\n  find_package_check_version(\n    1.2.3\n    result\n    HANDLE_VERSION_RANGE\n    RESULT_MESSAGE_VARIABLE reason\n  )\n  if(result)\n    message(STATUS \"${reason}\")\n  else()\n    # Logic when version check is not successful.\n    message(WARNING \"${reason}\")\n  endif()\n\nSee Also\n^^^^^^^^\n\n* :ref:`Find Modules` for details how to write a find module.\n#"
+      },
+      {
+        "label": "find_package_check_version",
+        "kind": 3,
+        "detail": "Command",
+        "documentation": "defined command from FindPackageHandleStandardArgs.cmake\n.rst:\nFindPackageHandleStandardArgs\n-----------------------------\n\nThis module provides commands intended for use in :ref:`Find Modules`\nimplementing :command:`find_package(<PackageName>)` calls.\n\nLoad this module in a CMake find module with:\n\n.. code-block:: cmake\n  :caption: ``FindFoo.cmake``\n\n  include(FindPackageHandleStandardArgs)\n\nCommands\n^^^^^^^^\n\nThis module provides the following commands:\n\n* :command:`find_package_handle_standard_args`\n* :command:`find_package_check_version`\n\n.. command:: find_package_handle_standard_args\n\n  Handles the ``REQUIRED``, ``QUIET`` and version-related arguments of\n  :command:`find_package`.\n\n  There are two signatures:\n\n  .. code-block:: cmake\n\n    find_package_handle_standard_args(\n      <PackageName>\n      (DEFAULT_MSG|<custom-failure-message>)\n      <required-vars>...\n    )\n\n    find_package_handle_standard_args(\n      <PackageName>\n      [REQUIRED_VARS <required-vars>...]\n      [VERSION_VAR <version-var>]\n      [HANDLE_VERSION_RANGE]\n      [HANDLE_COMPONENTS]\n      [CONFIG_MODE]\n      [NAME_MISMATCHED]\n      [REASON_FAILURE_MESSAGE <reason-failure-message>]\n      [FAIL_MESSAGE <custom-failure-message>]\n      [FOUND_VAR <result-var>] # Deprecated\n    )\n\n  This command sets the ``<PackageName>_FOUND`` variable to ``TRUE`` if all\n  the variables listed in ``<required-vars>...`` contain valid results\n  (e.g., valid filepaths) and any optional constraints are satisfied, and\n  ``FALSE`` otherwise.  A success or failure message may be displayed based\n  on the results and on whether the ``REQUIRED`` and/or ``QUIET`` option\n  was given to the :command:`find_package` call.\n\n  The arguments are:\n\n  ``<PackageName>``\n    The name of the package.  For example, as written in the\n    ``Find<PackageName>.cmake`` find module filename.\n\n  ``(DEFAULT_MSG|<custom-failure-message>)``\n    In the simple signature this specifies the failure message.\n    Use ``DEFAULT_MSG`` to ask for a default message to be computed\n    (recommended).  Not valid in the full signature.\n\n  ``REQUIRED_VARS <required-vars>...``\n    Specify the variables which are required for this package.\n    These may be named in the generated failure message asking the\n    user to set the missing variable values.  Therefore these should\n    typically be cache entries such as ``Foo_LIBRARY`` and not output\n    variables like ``Foo_LIBRARIES``.\n\n    .. versionchanged:: 3.18\n      If ``HANDLE_COMPONENTS`` is specified, this option can be omitted.\n\n  ``VERSION_VAR <version-var>``\n    Specify the name of a variable that holds the version of the package\n    that has been found.  This version will be checked against the\n    (potentially) specified required version given to the\n    :command:`find_package` call, including its ``EXACT`` option.\n    The default messages include information about the required\n    version and the version which has been actually found, both\n    if the version is ok or not.\n\n  ``HANDLE_VERSION_RANGE``\n    .. versionadded:: 3.19\n\n    Enable handling of a version range, if one is specified. Without this\n    option, a developer warning will be displayed if a version range is\n    specified.\n\n  ``HANDLE_COMPONENTS``\n    Enable handling of package components.  In this case, the command\n    will report which components have been found and which are missing,\n    and the ``<PackageName>_FOUND`` variable will be set to ``FALSE``\n    if any of the required components (i.e. not the ones listed after\n    the ``OPTIONAL_COMPONENTS`` option of :command:`find_package`) are\n    missing.\n\n  ``CONFIG_MODE``\n    Specify that the calling find module is a wrapper around a\n    call to ``find_package(<PackageName> NO_MODULE)``.  This implies\n    a ``VERSION_VAR`` value of ``<PackageName>_VERSION``.  The command\n    will automatically check whether the package configuration file\n    was found.\n\n  ``NAME_MISMATCHED``\n    .. versionadded:: 3.17\n\n    Indicate that the ``<PackageName>`` does not match the value of\n    :variable:`CMAKE_FIND_PACKAGE_NAME` variable. This is usually a mistake\n    and raises a warning, but it may be intentional for usage of the\n    command for components of a larger package.\n\n  ``REASON_FAILURE_MESSAGE <reason-failure-message>``\n    .. versionadded:: 3.16\n\n    Specify a custom message of the reason for the failure which will be\n    appended to the default generated message.\n\n  ``FAIL_MESSAGE <custom-failure-message>``\n    Specify a custom failure message instead of using the default\n    generated message.  Not recommended.\n\n  ``FOUND_VAR <result-var>``\n    .. deprecated:: 3.3\n      This option should no longer be used.\n\n    Specifies either ``<PackageName>_FOUND`` or ``<PACKAGENAME>_FOUND`` as the\n    result variable.  This exists only for backward compatibility with older\n    versions of CMake and is now ignored.  Result variables of both names are\n    now always set for compatibility also with or without this option.\n\n  .. note::\n\n    If ``<PackageName>`` does not match :variable:`CMAKE_FIND_PACKAGE_NAME`\n    for the calling module, a warning that there is a mismatch is given.  The\n    ``FPHSA_NAME_MISMATCHED`` variable may be set to bypass the warning if using\n    the old signature and the ``NAME_MISMATCHED`` argument using the new\n    signature.  To avoid forcing the caller to require newer versions of CMake\n    for usage, the variable's value will be used if defined when the\n    ``NAME_MISMATCHED`` argument is not passed for the new signature (but using\n    both is an error).\n\n.. command:: find_package_check_version\n\n  .. versionadded:: 3.19\n\n  Checks if a given version is valid against the version-related arguments\n  of :command:`find_package`:\n\n  .. code-block:: cmake\n\n    find_package_check_version(\n      <version>\n      <result-var>\n      [HANDLE_VERSION_RANGE]\n      [RESULT_MESSAGE_VARIABLE <message-var>]\n    )\n\n  The arguments are:\n\n  ``<version>``\n    The version string to check.\n\n  ``<result-var>``\n    Name of the result variable that will hold a boolean value giving the\n    result of the check.\n\n  ``HANDLE_VERSION_RANGE``\n    Enable handling of a version range, if one is specified.  Without this\n    option, a developer warning will be displayed if a version range is\n    specified.\n\n  ``RESULT_MESSAGE_VARIABLE <message-var>``\n    Specify a variable to get back a message describing the result of the check.\n\nExamples\n^^^^^^^^\n\nExamples: Full Signature\n\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\n\nExample for using a full signature of ``find_package_handle_standard_args()``:\n\n.. code-block:: cmake\n  :caption: ``FindLibArchive.cmake``\n\n  include(FindPackageHandleStandardArgs)\n  find_package_handle_standard_args(\n    LibArchive\n    REQUIRED_VARS LibArchive_LIBRARY LibArchive_INCLUDE_DIR\n    VERSION_VAR LibArchive_VERSION\n  )\n\nIn this case, the ``LibArchive`` package is considered to be found if\nboth ``LibArchive_LIBRARY`` and ``LibArchive_INCLUDE_DIR`` are valid.\nAlso the version of ``LibArchive`` will be checked by using the version\ncontained in ``LibArchive_VERSION``.  Since no ``FAIL_MESSAGE`` is given,\nthe default messages will be printed.\n\nAnother example for the full signature of\n``find_package_handle_standard_args()``:\n\n.. code-block:: cmake\n  :caption: ``FindAutomoc4.cmake``\n\n  find_package(Automoc4 QUIET NO_MODULE HINTS /opt/automoc4)\n\n  include(FindPackageHandleStandardArgs)\n  find_package_handle_standard_args(Automoc4 CONFIG_MODE)\n\nIn this case, a ``FindAutomoc4.cmake`` module wraps a call to\n``find_package(Automoc4 NO_MODULE)`` and adds an additional search\ndirectory for ``automoc4``.  Then the call to\n``find_package_handle_standard_args()`` produces a proper success/failure\nmessage.\n\nExample: Simple Signature\n\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\n\nExample for using a simple signature of ``find_package_handle_standard_args()``:\n\n.. code-block:: cmake\n  :caption: ``FindLibXml2.cmake``\n\n  include(FindPackageHandleStandardArgs)\n  find_package_handle_standard_args(\n    LibXml2\n    DEFAULT_MSG\n    LIBXML2_LIBRARY LIBXML2_INCLUDE_DIR\n  )\n\nIn this example, the ``LibXml2`` package is considered to be found if both\n``LIBXML2_LIBRARY`` and ``LIBXML2_INCLUDE_DIR`` variables are valid.  Then\nalso ``LibXml2_FOUND`` is set to ``TRUE``.  If it is not found and\n``REQUIRED`` was used, it fails with a :command:`message(FATAL_ERROR)`,\nindependent whether ``QUIET`` was used or not.  If it is found, success will\nbe reported, including the content of the first required variable specified\nin ``<required-vars>...``.  On repeated CMake runs, the same message will\nnot be printed again.\n\nExample: Checking Version\n\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\"\n\nExample for the ``find_package_check_version()`` usage:\n\n.. code-block:: cmake\n  :caption: ``FindFoo.cmake``\n\n  include(FindPackageHandleStandardArgs)\n  find_package_check_version(\n    1.2.3\n    result\n    HANDLE_VERSION_RANGE\n    RESULT_MESSAGE_VARIABLE reason\n  )\n  if(result)\n    message(STATUS \"${reason}\")\n  else()\n    # Logic when version check is not successful.\n    message(WARNING \"${reason}\")\n  endif()\n\nSee Also\n^^^^^^^^\n\n* :ref:`Find Modules` for details how to write a find module.\n#"
+      },
+      {
+        "label": "FIND_PACKAGE_CHECK_VERSION",
+        "kind": 3,
+        "detail": "Function",
+        "documentation": "defined function\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FIND_PACKAGE_HANDLE_STANDARD_ARGS",
+        "kind": 3,
+        "detail": "Function",
+        "documentation": "defined function\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "_FPHSA_FAILURE_MESSAGE",
+        "kind": 3,
+        "detail": "Function",
+        "documentation": "defined macro\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake\n\ninternal helper macro"
+      },
+      {
+        "label": "_FPHSA_HANDLE_FAILURE_CONFIG_MODE",
+        "kind": 3,
+        "detail": "Function",
+        "documentation": "defined macro\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake\n\ninternal helper macro to generate the failure message when used in CONFIG_MODE:"
+      },
+      {
+        "label": "__msg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "configsText",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FPHSA_REASON_FAILURE_MESSAGE",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${result}",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "package",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "package",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_ok",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_ok",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_msg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_msg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_regex",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_regex",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_regex",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_regex",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_msg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_ok",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_msg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_msg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_ok",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_msg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_msg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_ok",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_msg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_ok",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "version_msg",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${result}",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${FPCV_RESULT_MESSAGE_VARIABLE}",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "options",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake\n\nSet up the arguments for `cmake_parse_arguments`."
+      },
+      {
+        "label": "oneValueArgs",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "multiValueArgs",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "_KEYWORDS_FOR_EXTENDED_MODE",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake\n\nCheck whether we are in 'simple' or 'extended' mode:"
+      },
+      {
+        "label": "FPHSA_NAME_MISMATCHED_override",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake\n\nCMake version bumps for calling modules."
+      },
+      {
+        "label": "FPHSA_FAIL_MESSAGE",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FPHSA_REQUIRED_VARS",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FPHSA_VERSION_VAR",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FPHSA_FAIL_MESSAGE",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FPHSA_VERSION_VAR",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FPHSA_NAME_MISMATCHED",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "_CMAKE_FPHSA_PACKAGE_NAME",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake\n\nto propagate package name to FIND_PACKAGE_CHECK_VERSION"
+      },
+      {
+        "label": "FPHSA_FAIL_MESSAGE",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "_FOUND_VAR_UPPER",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "_FOUND_VAR_MIXED",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "MISSING_VARS",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake\n\nuser knows better what went wrong (#6375)"
+      },
+      {
+        "label": "DETAILS",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FPHSA_FOUND_${_NAME}",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake\n\ncheck if all passed variables are valid"
+      },
+      {
+        "label": "FPHSA_FOUND_${_NAME}",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${_NAME}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${_NAME_UPPER}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${_NAME}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${_NAME_UPPER}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FOUND_COMPONENTS_MSG",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "MISSING_COMPONENTS_MSG",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${_NAME}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "COMPONENT_MSG",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "VERSION_MSG",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake\n\nversion handling:"
+      },
+      {
+        "label": "VERSION_OK",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "_FOUND_VERSION",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FPCV_HANDLE_VERSION_RANGE",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "FPCV_HANDLE_VERSION_RANGE",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "VERSION_OK",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "VERSION_MSG",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "VERSION_MSG",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "VERSION_MSG",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "VERSION_MSG",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${_NAME}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "RESULT_MSG",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${_NAME}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
+      },
+      {
+        "label": "${_NAME_UPPER}_FOUND",
+        "kind": 12,
+        "detail": "Value",
+        "documentation": "defined variable\nfrom: /usr/share/cmake/Modules/FindPackageHandleStandardArgs.cmake"
       },
       {
         "label": "LIBSODIUM_LIBRARIES",

@@ -1,21 +1,106 @@
 {
-  "date": "2026-07-26T07:29:13.588940540+05:30",
+  "date": "2026-07-26T17:12:10.451873052+05:30",
   "data": {
-    "__launch_common_options": {
+    "PACKAGE_VERSION_COMPATIBLE": {
       "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
         "range": {
           "start": {
-            "line": 67,
-            "character": 6
+            "line": 44,
+            "character": 10
           },
           "end": {
-            "line": 67,
-            "character": 29
+            "line": 44,
+            "character": 36
           }
         }
       },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
+      "is_function": false
+    },
+    "SITE": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 204,
+            "character": 8
+          },
+          "end": {
+            "line": 204,
+            "character": 12
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "CROW_FEATURES": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowConfig.cmake",
+        "range": {
+          "start": {
+            "line": 47,
+            "character": 6
+          },
+          "end": {
+            "line": 47,
+            "character": 19
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake",
+      "is_function": false
+    },
+    "CROW_INSTALLED_FEATURES": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowConfig.cmake",
+        "range": {
+          "start": {
+            "line": 44,
+            "character": 4
+          },
+          "end": {
+            "line": 44,
+            "character": 27
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake",
+      "is_function": false
+    },
+    "_cmake_expected_targets": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowTargets.cmake",
+        "range": {
+          "start": {
+            "line": 20,
+            "character": 4
+          },
+          "end": {
+            "line": 20,
+            "character": 27
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake",
+      "is_function": false
+    },
+    "PACKAGE_VERSION_EXACT": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
+        "range": {
+          "start": {
+            "line": 48,
+            "character": 10
+          },
+          "end": {
+            "line": 48,
+            "character": 31
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
       "is_function": false
     },
     "SET_IF_SET_AND_NOT_SET": {
@@ -35,153 +120,51 @@
       "document_info": "defined macro\nfrom: /usr/share/cmake/Modules/CTest.cmake",
       "is_function": true
     },
-    "CTEST_LAUNCH_LINK": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-        "range": {
-          "start": {
-            "line": 86,
-            "character": 6
-          },
-          "end": {
-            "line": 86,
-            "character": 23
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-      "is_function": false
-    },
-    "UPDATE_COMMAND": {
+    "BUILDNAME": {
       "location": {
         "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
         "range": {
           "start": {
-            "line": 175,
+            "line": 240,
             "character": 8
           },
           "end": {
-            "line": 175,
-            "character": 22
+            "line": 240,
+            "character": 17
           }
         }
       },
       "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
       "is_function": false
     },
-    "RUN_FROM_CTEST_OR_DART": {
+    "_CROW_ILL": {
       "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "uri": "file:///usr/lib/cmake/Crow/CrowConfig.cmake",
         "range": {
           "start": {
-            "line": 277,
-            "character": 8
-          },
-          "end": {
-            "line": 277,
-            "character": 30
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "${var}": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 70,
-            "character": 6
-          },
-          "end": {
-            "line": 70,
+            "line": 65,
             "character": 12
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "${_var}": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfig.cmake",
-        "range": {
-          "start": {
-            "line": 22,
-            "character": 6
           },
           "end": {
-            "line": 22,
-            "character": 13
+            "line": 65,
+            "character": 21
           }
         }
       },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfig.cmake",
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake",
       "is_function": false
     },
-    "_cmake_targets_defined": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbTargets.cmake",
-        "range": {
-          "start": {
-            "line": 18,
-            "character": 4
-          },
-          "end": {
-            "line": 18,
-            "character": 26
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbTargets.cmake\n\nProtect against multiple inclusion, which would fail when already imported targets are added once more.",
-      "is_function": false
-    },
-    "CTEST_SUBMIT_RETRY_DELAY": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 182,
-            "character": 6
-          },
-          "end": {
-            "line": 182,
-            "character": 30
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "UPDATE_OPTIONS": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 176,
-            "character": 8
-          },
-          "end": {
-            "line": 176,
-            "character": 22
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "CMAKE_CXX_EXTENSIONS": {
+    "CMAKE_CXX_STANDARD_REQUIRED": {
       "location": {
         "uri": "file:///home/bubu/kode/axis/CMakeLists.txt",
         "range": {
           "start": {
-            "line": 4,
+            "line": 3,
             "character": 4
           },
           "end": {
-            "line": 4,
-            "character": 24
+            "line": 3,
+            "character": 31
           }
         }
       },
@@ -205,9 +188,9 @@
       "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
       "is_function": false
     },
-    "PACKAGE_VERSION_UNSUITABLE": {
+    "CTEST_USE_LAUNCHERS": {
       "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
+        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
         "range": {
           "start": {
             "line": 63,
@@ -215,194 +198,41 @@
           },
           "end": {
             "line": 63,
-            "character": 32
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
-      "is_function": false
-    },
-    "__launch_compile_options": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-        "range": {
-          "start": {
-            "line": 70,
-            "character": 6
-          },
-          "end": {
-            "line": 70,
-            "character": 30
+            "character": 25
           }
         }
       },
       "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
       "is_function": false
     },
-    "__launch_custom_options": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-        "range": {
-          "start": {
-            "line": 76,
-            "character": 6
-          },
-          "end": {
-            "line": 76,
-            "character": 29
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-      "is_function": false
-    },
-    "PACKAGE_VERSION_EXACT": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
-        "range": {
-          "start": {
-            "line": 48,
-            "character": 10
-          },
-          "end": {
-            "line": 48,
-            "character": 31
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
-      "is_function": false
-    },
-    "__conf_types": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestTargets.cmake",
-        "range": {
-          "start": {
-            "line": 75,
-            "character": 6
-          },
-          "end": {
-            "line": 75,
-            "character": 18
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake\n\nWe need to pass the configuration type on the test command line.",
-      "is_function": false
-    },
-    "DART_NAME_COMPONENT": {
+    "UPDATE_OPTIONS": {
       "location": {
         "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
         "range": {
           "start": {
-            "line": 222,
-            "character": 10
-          },
-          "end": {
-            "line": 222,
-            "character": 29
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "CMAKE_TARGET_PATH": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestTargets.cmake",
-        "range": {
-          "start": {
-            "line": 15,
-            "character": 4
-          },
-          "end": {
-            "line": 15,
-            "character": 21
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake",
-      "is_function": false
-    },
-    "SUBMIT_URL": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 125,
+            "line": 176,
             "character": 8
           },
           "end": {
-            "line": 125,
-            "character": 18
+            "line": 176,
+            "character": 22
           }
         }
       },
       "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
       "is_function": false
     },
-    "COVERAGE_EXTRA_FLAGS": {
+    "DART_COMPILER": {
       "location": {
         "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
         "range": {
           "start": {
-            "line": 198,
-            "character": 6
+            "line": 217,
+            "character": 10
           },
           "end": {
-            "line": 198,
-            "character": 26
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "PACKAGE_PREFIX_DIR": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfig.cmake",
-        "range": {
-          "start": {
-            "line": 16,
-            "character": 6
-          },
-          "end": {
-            "line": 16,
-            "character": 24
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfig.cmake",
-      "is_function": false
-    },
-    "check_required_components": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfig.cmake",
-        "range": {
-          "start": {
-            "line": 28,
-            "character": 6
-          },
-          "end": {
-            "line": 28,
-            "character": 31
-          }
-        }
-      },
-      "document_info": "defined macro\nfrom: /usr/lib/cmake/leveldb/leveldbConfig.cmake",
-      "is_function": true
-    },
-    "MAKECOMMAND": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 246,
-            "character": 6
-          },
-          "end": {
-            "line": 246,
-            "character": 17
+            "line": 217,
+            "character": 23
           }
         }
       },
@@ -426,306 +256,17 @@
       "document_info": "defined function\nfrom: /usr/share/cmake/Modules/CTest.cmake\n\nlike vs9 or vs10",
       "is_function": true
     },
-    "CTEST_USE_LAUNCHERS": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-        "range": {
-          "start": {
-            "line": 63,
-            "character": 6
-          },
-          "end": {
-            "line": 63,
-            "character": 25
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-      "is_function": false
-    },
-    "SET_IF_NOT_SET": {
+    "SUBMIT_URL": {
       "location": {
         "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
         "range": {
           "start": {
-            "line": 77,
+            "line": 125,
             "character": 8
           },
           "end": {
-            "line": 77,
-            "character": 22
-          }
-        }
-      },
-      "document_info": "defined macro\nfrom: /usr/share/cmake/Modules/CTest.cmake\n\nSetup some auxiliary macros",
-      "is_function": true
-    },
-    "__launch_link_options": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-        "range": {
-          "start": {
-            "line": 73,
-            "character": 6
-          },
-          "end": {
-            "line": 73,
-            "character": 27
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-      "is_function": false
-    },
-    "DART_COMPILER": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 217,
-            "character": 10
-          },
-          "end": {
-            "line": 217,
-            "character": 23
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "CTEST_TEST_COVERAGE_DATA_EXECUTABLE": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestTargets.cmake",
-        "range": {
-          "start": {
-            "line": 46,
-            "character": 10
-          },
-          "end": {
-            "line": 46,
-            "character": 45
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake",
-      "is_function": false
-    },
-    "CMAKE_IMPORT_FILE_VERSION": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbTargets.cmake",
-        "range": {
-          "start": {
-            "line": 115,
-            "character": 4
-          },
-          "end": {
-            "line": 115,
-            "character": 29
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbTargets.cmake\n\nCommands beyond this point should not need to know the version.",
-      "is_function": false
-    },
-    "DEFAULT_CTEST_CONFIGURATION_TYPE": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 253,
-            "character": 8
-          },
-          "end": {
-            "line": 253,
-            "character": 40
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "CMAKE_CXX_STANDARD_REQUIRED": {
-      "location": {
-        "uri": "file:///home/bubu/kode/axis/CMakeLists.txt",
-        "range": {
-          "start": {
-            "line": 3,
-            "character": 4
-          },
-          "end": {
-            "line": 3,
-            "character": 31
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /home/bubu/kode/axis/CMakeLists.txt",
-      "is_function": false
-    },
-    "CMAKE_EXPORT_COMPILE_COMMANDS": {
-      "location": {
-        "uri": "file:///home/bubu/kode/axis/CMakeLists.txt",
-        "range": {
-          "start": {
-            "line": 5,
-            "character": 4
-          },
-          "end": {
-            "line": 5,
-            "character": 33
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /home/bubu/kode/axis/CMakeLists.txt",
-      "is_function": false
-    },
-    "BUILD_TESTING": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 62,
-            "character": 7
-          },
-          "end": {
-            "line": 62,
-            "character": 20
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "CTEST_LAUNCH_CUSTOM": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-        "range": {
-          "start": {
-            "line": 89,
-            "character": 6
-          },
-          "end": {
-            "line": 89,
-            "character": 25
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-      "is_function": false
-    },
-    "CTEST_SUBMIT_RETRY_COUNT": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 184,
-            "character": 6
-          },
-          "end": {
-            "line": 184,
-            "character": 30
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "set_and_check": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfig.cmake",
-        "range": {
-          "start": {
-            "line": 21,
-            "character": 6
-          },
-          "end": {
-            "line": 21,
-            "character": 19
-          }
-        }
-      },
-      "document_info": "defined macro\nfrom: /usr/lib/cmake/leveldb/leveldbConfig.cmake",
-      "is_function": true
-    },
-    "BUILDNAME": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 240,
-            "character": 8
-          },
-          "end": {
-            "line": 240,
-            "character": 17
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "_cmake_targets_not_defined": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbTargets.cmake",
-        "range": {
-          "start": {
-            "line": 19,
-            "character": 4
-          },
-          "end": {
-            "line": 19,
-            "character": 30
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbTargets.cmake",
-      "is_function": false
-    },
-    "CMAKE_CXX_STANDARD": {
-      "location": {
-        "uri": "file:///home/bubu/kode/axis/CMakeLists.txt",
-        "range": {
-          "start": {
-            "line": 2,
-            "character": 4
-          },
-          "end": {
-            "line": 2,
-            "character": 22
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /home/bubu/kode/axis/CMakeLists.txt",
-      "is_function": false
-    },
-    "CTEST_LAUNCH_COMPILE": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-        "range": {
-          "start": {
-            "line": 83,
-            "character": 6
-          },
-          "end": {
-            "line": 83,
-            "character": 26
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
-      "is_function": false
-    },
-    "MEMORYCHECK_SUPPRESSIONS_FILE": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 193,
-            "character": 6
-          },
-          "end": {
-            "line": 193,
-            "character": 35
+            "line": 125,
+            "character": 18
           }
         }
       },
@@ -749,22 +290,328 @@
       "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
       "is_function": false
     },
-    "_cmake_expected_targets": {
+    "CMAKE_CXX_EXTENSIONS": {
       "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbTargets.cmake",
+        "uri": "file:///home/bubu/kode/axis/CMakeLists.txt",
         "range": {
           "start": {
-            "line": 20,
+            "line": 4,
             "character": 4
           },
           "end": {
-            "line": 20,
+            "line": 4,
+            "character": 24
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /home/bubu/kode/axis/CMakeLists.txt",
+      "is_function": false
+    },
+    "__launch_compile_options": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+        "range": {
+          "start": {
+            "line": 70,
+            "character": 6
+          },
+          "end": {
+            "line": 70,
+            "character": 30
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+      "is_function": false
+    },
+    "_cmake_targets_not_defined": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowTargets.cmake",
+        "range": {
+          "start": {
+            "line": 19,
+            "character": 4
+          },
+          "end": {
+            "line": 19,
+            "character": 30
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake",
+      "is_function": false
+    },
+    "COVERAGE_EXTRA_FLAGS": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 198,
+            "character": 6
+          },
+          "end": {
+            "line": 198,
+            "character": 26
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "check_required_components": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowConfig.cmake",
+        "range": {
+          "start": {
+            "line": 24,
+            "character": 6
+          },
+          "end": {
+            "line": 24,
+            "character": 31
+          }
+        }
+      },
+      "document_info": "defined macro\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake",
+      "is_function": true
+    },
+    "__launch_link_options": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+        "range": {
+          "start": {
+            "line": 73,
+            "character": 6
+          },
+          "end": {
+            "line": 73,
             "character": 27
           }
         }
       },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbTargets.cmake",
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
       "is_function": false
+    },
+    "CMAKE_CXX_STANDARD": {
+      "location": {
+        "uri": "file:///home/bubu/kode/axis/CMakeLists.txt",
+        "range": {
+          "start": {
+            "line": 2,
+            "character": 4
+          },
+          "end": {
+            "line": 2,
+            "character": 22
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /home/bubu/kode/axis/CMakeLists.txt",
+      "is_function": false
+    },
+    "CVF_VERSION_MAJOR": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
+        "range": {
+          "start": {
+            "line": 23,
+            "character": 8
+          },
+          "end": {
+            "line": 23,
+            "character": 25
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
+      "is_function": false
+    },
+    "CMAKE_EXPORT_COMPILE_COMMANDS": {
+      "location": {
+        "uri": "file:///home/bubu/kode/axis/CMakeLists.txt",
+        "range": {
+          "start": {
+            "line": 5,
+            "character": 4
+          },
+          "end": {
+            "line": 5,
+            "character": 33
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /home/bubu/kode/axis/CMakeLists.txt",
+      "is_function": false
+    },
+    "CTEST_LAUNCH_COMPILE": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+        "range": {
+          "start": {
+            "line": 83,
+            "character": 6
+          },
+          "end": {
+            "line": 83,
+            "character": 26
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+      "is_function": false
+    },
+    "${_var}": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowConfig.cmake",
+        "range": {
+          "start": {
+            "line": 18,
+            "character": 6
+          },
+          "end": {
+            "line": 18,
+            "character": 13
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake",
+      "is_function": false
+    },
+    "CTEST_LAUNCH_LINK": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+        "range": {
+          "start": {
+            "line": 86,
+            "character": 6
+          },
+          "end": {
+            "line": 86,
+            "character": 23
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+      "is_function": false
+    },
+    "DART_TESTING_TIMEOUT": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 179,
+            "character": 6
+          },
+          "end": {
+            "line": 179,
+            "character": 26
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "__launch_common_options": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+        "range": {
+          "start": {
+            "line": 67,
+            "character": 6
+          },
+          "end": {
+            "line": 67,
+            "character": 29
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+      "is_function": false
+    },
+    "CTEST_TLS_VERIFY": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestTargets.cmake",
+        "range": {
+          "start": {
+            "line": 34,
+            "character": 10
+          },
+          "end": {
+            "line": 34,
+            "character": 26
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake",
+      "is_function": false
+    },
+    "MAKECOMMAND": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 246,
+            "character": 6
+          },
+          "end": {
+            "line": 246,
+            "character": 17
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "_cmake_targets_defined": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowTargets.cmake",
+        "range": {
+          "start": {
+            "line": 18,
+            "character": 4
+          },
+          "end": {
+            "line": 18,
+            "character": 26
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake\n\nProtect against multiple inclusion, which would fail when already imported targets are added once more.",
+      "is_function": false
+    },
+    "BUILD_TESTING": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 62,
+            "character": 7
+          },
+          "end": {
+            "line": 62,
+            "character": 20
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "set_and_check": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowConfig.cmake",
+        "range": {
+          "start": {
+            "line": 17,
+            "character": 6
+          },
+          "end": {
+            "line": 17,
+            "character": 19
+          }
+        }
+      },
+      "document_info": "defined macro\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake",
+      "is_function": true
     },
     "CTEST_TEST_COVERAGE_MERGE_EXECUTABLE": {
       "location": {
@@ -781,23 +628,6 @@
         }
       },
       "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake",
-      "is_function": false
-    },
-    "SITE": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
-        "range": {
-          "start": {
-            "line": 204,
-            "character": 8
-          },
-          "end": {
-            "line": 204,
-            "character": 12
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
       "is_function": false
     },
     "\"${var}\"": {
@@ -817,51 +647,17 @@
       "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
       "is_function": false
     },
-    "${_NAME}_FOUND": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfig.cmake",
-        "range": {
-          "start": {
-            "line": 32,
-            "character": 12
-          },
-          "end": {
-            "line": 32,
-            "character": 26
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfig.cmake",
-      "is_function": false
-    },
-    "CTEST_TLS_VERSION": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestTargets.cmake",
-        "range": {
-          "start": {
-            "line": 27,
-            "character": 10
-          },
-          "end": {
-            "line": 27,
-            "character": 27
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake",
-      "is_function": false
-    },
-    "DART_TESTING_TIMEOUT": {
+    "MEMORYCHECK_SUPPRESSIONS_FILE": {
       "location": {
         "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
         "range": {
           "start": {
-            "line": 179,
+            "line": 193,
             "character": 6
           },
           "end": {
-            "line": 179,
-            "character": 26
+            "line": 193,
+            "character": 35
           }
         }
       },
@@ -885,22 +681,243 @@
       "document_info": "defined macro\nfrom: /usr/share/cmake/Modules/CTest.cmake",
       "is_function": true
     },
-    "CVF_VERSION_MAJOR": {
+    "_IMPORT_PREFIX": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowTargets.cmake",
+        "range": {
+          "start": {
+            "line": 84,
+            "character": 4
+          },
+          "end": {
+            "line": 84,
+            "character": 18
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake\n\nCleanup temporary variables.",
+      "is_function": false
+    },
+    "_CROW_ICD": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowConfig.cmake",
+        "range": {
+          "start": {
+            "line": 68,
+            "character": 12
+          },
+          "end": {
+            "line": 68,
+            "character": 21
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake",
+      "is_function": false
+    },
+    "PACKAGE_VERSION_UNSUITABLE": {
       "location": {
         "uri": "file:///usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
         "range": {
           "start": {
-            "line": 23,
-            "character": 8
+            "line": 63,
+            "character": 6
           },
           "end": {
-            "line": 23,
-            "character": 25
+            "line": 63,
+            "character": 32
           }
         }
       },
       "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
       "is_function": false
+    },
+    "CTEST_LAUNCH_CUSTOM": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+        "range": {
+          "start": {
+            "line": 89,
+            "character": 6
+          },
+          "end": {
+            "line": 89,
+            "character": 25
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+      "is_function": false
+    },
+    "CVS_UPDATE_OPTIONS": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 153,
+            "character": 8
+          },
+          "end": {
+            "line": 153,
+            "character": 26
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "RUN_FROM_CTEST_OR_DART": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 277,
+            "character": 8
+          },
+          "end": {
+            "line": 277,
+            "character": 30
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "__launch_custom_options": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+        "range": {
+          "start": {
+            "line": 76,
+            "character": 6
+          },
+          "end": {
+            "line": 76,
+            "character": 29
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestUseLaunchers.cmake",
+      "is_function": false
+    },
+    "DART_NAME_COMPONENT": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 222,
+            "character": 10
+          },
+          "end": {
+            "line": 222,
+            "character": 29
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "CMAKE_IMPORT_FILE_VERSION": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowTargets.cmake",
+        "range": {
+          "start": {
+            "line": 115,
+            "character": 4
+          },
+          "end": {
+            "line": 115,
+            "character": 29
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowTargets.cmake\n\nCommands beyond this point should not need to know the version.",
+      "is_function": false
+    },
+    "CTEST_TLS_VERSION": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestTargets.cmake",
+        "range": {
+          "start": {
+            "line": 27,
+            "character": 10
+          },
+          "end": {
+            "line": 27,
+            "character": 27
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake",
+      "is_function": false
+    },
+    "DEFAULT_CTEST_CONFIGURATION_TYPE": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 253,
+            "character": 8
+          },
+          "end": {
+            "line": 253,
+            "character": 40
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "CTEST_SUBMIT_RETRY_COUNT": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 184,
+            "character": 6
+          },
+          "end": {
+            "line": 184,
+            "character": 30
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "CTEST_TEST_COVERAGE_DATA_EXECUTABLE": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestTargets.cmake",
+        "range": {
+          "start": {
+            "line": 46,
+            "character": 10
+          },
+          "end": {
+            "line": 46,
+            "character": 45
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake",
+      "is_function": false
+    },
+    "SET_IF_NOT_SET": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 77,
+            "character": 8
+          },
+          "end": {
+            "line": 77,
+            "character": 22
+          }
+        }
+      },
+      "document_info": "defined macro\nfrom: /usr/share/cmake/Modules/CTest.cmake\n\nSetup some auxiliary macros",
+      "is_function": true
     },
     "UPDATE_TYPE": {
       "location": {
@@ -919,17 +936,119 @@
       "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
       "is_function": false
     },
-    "CVS_UPDATE_OPTIONS": {
+    "${var}": {
       "location": {
         "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
         "range": {
           "start": {
-            "line": 153,
+            "line": 70,
+            "character": 6
+          },
+          "end": {
+            "line": 70,
+            "character": 12
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "CMAKE_TARGET_PATH": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestTargets.cmake",
+        "range": {
+          "start": {
+            "line": 15,
+            "character": 4
+          },
+          "end": {
+            "line": 15,
+            "character": 21
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake",
+      "is_function": false
+    },
+    "__conf_types": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTestTargets.cmake",
+        "range": {
+          "start": {
+            "line": 75,
+            "character": 6
+          },
+          "end": {
+            "line": 75,
+            "character": 18
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake\n\nWe need to pass the configuration type on the test command line.",
+      "is_function": false
+    },
+    "PACKAGE_PREFIX_DIR": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowConfig.cmake",
+        "range": {
+          "start": {
+            "line": 12,
+            "character": 6
+          },
+          "end": {
+            "line": 12,
+            "character": 24
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake",
+      "is_function": false
+    },
+    "${_NAME}_FOUND": {
+      "location": {
+        "uri": "file:///usr/lib/cmake/Crow/CrowConfig.cmake",
+        "range": {
+          "start": {
+            "line": 28,
+            "character": 12
+          },
+          "end": {
+            "line": 28,
+            "character": 26
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/lib/cmake/Crow/CrowConfig.cmake",
+      "is_function": false
+    },
+    "UPDATE_COMMAND": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 175,
             "character": 8
           },
           "end": {
-            "line": 153,
-            "character": 26
+            "line": 175,
+            "character": 22
+          }
+        }
+      },
+      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
+      "is_function": false
+    },
+    "CTEST_SUBMIT_RETRY_DELAY": {
+      "location": {
+        "uri": "file:///usr/share/cmake/Modules/CTest.cmake",
+        "range": {
+          "start": {
+            "line": 182,
+            "character": 6
+          },
+          "end": {
+            "line": 182,
+            "character": 30
           }
         }
       },
@@ -951,57 +1070,6 @@
         }
       },
       "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTest.cmake",
-      "is_function": false
-    },
-    "CTEST_TLS_VERIFY": {
-      "location": {
-        "uri": "file:///usr/share/cmake/Modules/CTestTargets.cmake",
-        "range": {
-          "start": {
-            "line": 34,
-            "character": 10
-          },
-          "end": {
-            "line": 34,
-            "character": 26
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/share/cmake/Modules/CTestTargets.cmake",
-      "is_function": false
-    },
-    "_IMPORT_PREFIX": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbTargets.cmake",
-        "range": {
-          "start": {
-            "line": 84,
-            "character": 4
-          },
-          "end": {
-            "line": 84,
-            "character": 18
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbTargets.cmake\n\nCleanup temporary variables.",
-      "is_function": false
-    },
-    "PACKAGE_VERSION_COMPATIBLE": {
-      "location": {
-        "uri": "file:///usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
-        "range": {
-          "start": {
-            "line": 44,
-            "character": 10
-          },
-          "end": {
-            "line": 44,
-            "character": 36
-          }
-        }
-      },
-      "document_info": "defined variable\nfrom: /usr/lib/cmake/leveldb/leveldbConfigVersion.cmake",
       "is_function": false
     }
   }
