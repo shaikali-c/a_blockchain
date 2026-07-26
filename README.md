@@ -1,41 +1,46 @@
 # Axis — Educational C++23 Blockchain Node
 
-Axis is a minimal, clean, C++23 blockchain node that demonstrates how real
-blockchain systems work. It implements a proof-of-work chain, UTXO-based
-transactions, Ed25519 signatures, LevelDB persistence, and a binary TCP
-protocol — all in about 1,000 lines of code.
+Axis is a minimal C++23 blockchain node for learning how blockchain components fit together. It implements a proof-of-work-style linear chain, UTXO-based transactions, Ed25519 signatures, LevelDB persistence, a binary TCP protocol, and an HTTP/WebSocket API.
 
 **This is an educational project, not production cryptocurrency software.**
 
 ## What it does
 
-- Maintains a chain of blocks (each containing transactions)
-- Tracks Unspent Transaction Outputs (UTXO set)
-- Accepts transactions from wallet clients over TCP
-- Validates signatures, ownership, and double-spending
-- Persists blocks and pending transactions in LevelDB
-- Provides a binary wire protocol for wallets
+- Maintains a local linear chain of blocks.
+- Tracks an in-memory UTXO set reconstructed from persisted blocks.
+- Accepts signed transactions into a persisted mempool.
+- Validates transaction ownership, signatures, duplicate txids, and local mempool double-spends.
+- Accepts externally mined block candidates through the TCP protocol.
+- Persists blocks and pending transactions in LevelDB.
+- Exposes:
+  - binary TCP protocol on port `8889`,
+  - HTTP/JSON API on port `8080`,
+  - WebSocket event stream on port `8080` at `/ws/events`.
 
-## What it does NOT do (yet)
+## Current limitations
 
-There is no miner, no peer-to-peer sync, no wallet UI, no REST API. Blocks
-are created only during genesis. `verifyBlock()` exists but is not wired to
-any network message. This is a foundation for learning and extension.
+Axis intentionally omits many production blockchain features:
+
+- no peer-to-peer synchronization,
+- no fork choice or chain reorganization,
+- no internal miner loop,
+- no difficulty retargeting,
+- no authenticated or encrypted API layer,
+- no wallet/key-management UI,
+- no enforced block reward in the current block submission path.
+
+See [`docs/FutureRoadmap.md`](docs/FutureRoadmap.md) for realistic future improvements.
 
 ## Quick start
 
 ### Dependencies
 
 - CMake ≥ 3.16
-- C++23 compiler (GCC 14+ or Clang 18+)
-- [libsodium](https://doc.libsodium.org/) ≥ 1.0.18
-- [LevelDB](https://github.com/google/leveldb)
-- [standalone Asio](https://think-async.com/Asio/)
-
-On Arch Linux:
-```bash
-pacman -S cmake ninja libsodium leveldb asio
-```
+- C++23 compiler
+- libsodium ≥ 1.0.18
+- LevelDB
+- standalone Asio
+- Crow
 
 ### Build & test
 
@@ -48,78 +53,67 @@ ctest --test-dir build --output-on-failure
 ### Run
 
 ```bash
-rm -rf blocks pool   # start fresh (optional)
+rm -rf blocks pool   # optional: start fresh
 ./build/axisd
 ```
 
-Starts a TCP server on port `9618`. Creates a genesis block with 15,000,000
-units sent to address `f45a20e043b01f65638a46831ce79b8fec3f6737` on first run.
+On first run, Axis creates a genesis block with `15.000000 AXIS` assigned to address:
+
+```text
+f45a20e043b01f65638a46831ce79b8fec3f6737
+```
 
 ## Project structure
 
-```
-include/axis/       ── Public headers
-  types.h             Core type aliases, Writer/Reader serializers
-  util.h              Logger, hex conversion
-  crypto.h            Hash, sign, verify, Merkle root
-  tx.h                Transaction, OutPoint, TxOutput
-  block.h             BlockHeader, Block
-  chain.h             Chain (UTXO set, validation, persistence)
-  net.h               TCP server, wire protocol
-
-src/                ── Implementation files (one per header)
-  main.cpp            Entry point
-  chain.cpp           Chain, genesis, UTXO, pool
-  block.cpp           Block serialization
-  tx.cpp              Transaction serialization
-  crypto.cpp          Hashing, signatures, Merkle root
-  net.cpp             TCP server, message handling
-
-tests/              ── Regression tests
-  core_serialization_tests.cpp
-
-blocks/             ── LevelDB database (chain data, created at runtime)
-pool/               ── LevelDB database (mempool data, created at runtime)
+```text
+include/axis/       Public headers
+src/                Implementations
+tests/              Regression tests
+blocks/             Runtime LevelDB chain database
+pool/               Runtime LevelDB mempool database
+docs/               Canonical technical documentation
 ```
 
 ## Architecture in one diagram
 
 ```mermaid
 graph TD
-    A[Wallet / TCP Client] -->|GetUTXOs, CreateTransaction| B(Server)
-    B -->|query UTXO| C(Chain)
-    B -->|add signed tx| C
-    C --> D[(blocks LevelDB)]
-    C --> E[(pool LevelDB)]
-    C --> F[UTXO set in memory]
-    C --> G[pending txs in memory]
-    C --> H[Block chain in memory]
-    C --> I[crypto functions]
+    Wallet[Wallet / Miner TCP Client] -->|binary TCP 8889| Server[Server]
+    Explorer[Explorer / Dashboard] -->|HTTP 8080| Web[WebServer]
+    Browser[WebSocket Client] -->|/ws/events| Web
+    Server --> Chain[Chain]
+    Web --> Chain
+    Chain --> Blocks[(blocks LevelDB)]
+    Chain --> Pool[(pool LevelDB)]
+    Chain --> UTXO[UTXO set]
+    Chain --> Mempool[Mempool]
+    Chain --> Crypto[libsodium crypto helpers]
+    Server -->|accepted tx/block callbacks| Web
 ```
 
 ## Documentation
 
-Start with [`docs/README.md`](docs/README.md) — it indexes everything.
+The generated documentation in [`docs/README.md`](docs/README.md) is the single source of truth for the current implementation.
+
+Key entry points:
 
 | Document | What it covers |
-|----------|---------------|
-| [Architecture](docs/architecture.md) | High-level design, modules, data flow |
-| [Blockchain concepts](docs/blockchain.md) | Blockchain explained from zero |
-| [UTXO model](docs/utxo_model.md) | The UTXO accounting model |
-| [Transactions](docs/transaction_lifecycle.md) | Transaction creation through validation |
-| [Blocks](docs/block_lifecycle.md) | Block structure, genesis, chaining |
-| [Serialization](docs/serialization.md) | Binary wire and storage formats |
-| [Packet protocol](docs/packet_protocol.md) | TCP message format and types |
-| [Database](docs/database.md) | LevelDB key/value schemas |
-| [Cryptography](docs/cryptography.md) | Hashing, signing, addresses |
-| [Networking](docs/network.md) | Asio coroutines, connection lifecycle |
-| [Class reference](docs/class_reference.md) | Every class, method, field |
-| [Function reference](docs/function_reference.md) | Every non-trivial function |
-| [Developer guide](docs/developer_guide.md) | How to extend the project |
-| [Design decisions](docs/design_decisions.md) | Why things are the way they are |
-| [FAQ](docs/faq.md) | Common questions |
-| [Glossary](docs/glossary.md) | Every technical term defined |
+| --- | --- |
+| [`docs/Architecture.md`](docs/Architecture.md) | System architecture and module boundaries. |
+| [`docs/ProjectStructure.md`](docs/ProjectStructure.md) | File and target layout. |
+| [`docs/DataFlow.md`](docs/DataFlow.md) | End-to-end transaction/block/storage flows. |
+| [`docs/Blockchain.md`](docs/Blockchain.md) | Chain ownership, genesis, block insertion, lookup. |
+| [`docs/Transactions.md`](docs/Transactions.md) | Transaction lifecycle, signing, serialization. |
+| [`docs/UTXO.md`](docs/UTXO.md) | UTXO accounting and pending-spend behavior. |
+| [`docs/Mempool.md`](docs/Mempool.md) | Pending transaction storage and mining selection. |
+| [`docs/Validation.md`](docs/Validation.md) | Current validation rules and gaps. |
+| [`docs/Networking.md`](docs/Networking.md) | TCP, HTTP, and WebSocket behavior. |
+| [`docs/api/ProtocolPackets.md`](docs/api/ProtocolPackets.md) | Exact TCP packet layouts. |
+| [`docs/api/PublicAPI.md`](docs/api/PublicAPI.md) | HTTP/WebSocket and public TCP API reference. |
+| [`docs/SourceFiles.md`](docs/SourceFiles.md) | Every source/header/test file. |
+| [`docs/FunctionReference.md`](docs/FunctionReference.md) | Function-level reference. |
+| [`docs/developer/ExtendingTheProject.md`](docs/developer/ExtendingTheProject.md) | Where and how to add features. |
 
 ## License
 
-See the repository for license information (not specified in source).
+No license file is currently specified in the source tree.
