@@ -1,21 +1,25 @@
-#include "pch.h"
-#include "blockchain.h"
-#include "databaseManager.h"
-#include "logger.h"
+#include "axis/chain.h"
+#include "axis/net.h"
+#include "axis/util.h"
+
 #include <sodium.h>
 
-int main()
-{
-	if (sodium_init() < 0) {
-		Logger::error("Library initilization failed :(");
-	}
-	try {
-		Blockchain& blockchain = Blockchain::getInstance();
-		blockchain.listUTXO();
-		blockchain.startServer();
-	} catch(...) {
-		Logger::error("Blockchain initialization failed :(");
-	}
-	std::cin.get();
-	return 0;
+#include <exception>
+#include <string>
+
+int main() {
+    if (sodium_init() < 0) {
+        logging::err("sodium init failed");
+        return 1;
+    }
+    try {
+        Chain chain;
+        Server server{chain};
+        logging::info("server starting on port 9618");
+        server.run();
+    } catch (const std::exception& e) {
+        logging::err(std::string{"fatal: "} + e.what());
+        return 1;
+    }
+    return 0;
 }

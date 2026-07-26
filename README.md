@@ -1,111 +1,125 @@
-# Axis
-![Homepage](https://github.com/shaikali-c/a_blockchain/blob/316c8b5a7843fbfaa5b6da96a551b4fc69509504/screenshots/working.png)
-The above output screen illustrates the functioning of the developed blockchain wallet application. Through the CLI, the user can create and manage keys, generate and sign transactions, verify digital signatures, and check account balance. This demonstrates the successful implementation of essential wallet-side blockchain operations.
+# Axis — Educational C++23 Blockchain Node
 
+Axis is a minimal, clean, C++23 blockchain node that demonstrates how real
+blockchain systems work. It implements a proof-of-work chain, UTXO-based
+transactions, Ed25519 signatures, LevelDB persistence, and a binary TCP
+protocol — all in about 1,000 lines of code.
 
-A lightweight, proof-of-work blockchain implementation written in C++. Axis features a UTXO-based transaction model, digital signatures, persistent storage via LevelDB, and a REST API powered by Crow.
+**This is an educational project, not production cryptocurrency software.**
 
-## Overview
-Axis is a fully functional blockchain node that can:
-- Validate and store blocks and transactions
-- Maintain a UTXO set
-- Verify cryptographic signatures (Ed25519 via libsodium)
-- Accept transactions into a mempool
-- Accept mined blocks via an API endpoint
-- Persist all chain data and the transaction pool to disk using LevelDB
-- Serve chain state and data over a REST API
+## What it does
 
+- Maintains a chain of blocks (each containing transactions)
+- Tracks Unspent Transaction Outputs (UTXO set)
+- Accepts transactions from wallet clients over TCP
+- Validates signatures, ownership, and double-spending
+- Persists blocks and pending transactions in LevelDB
+- Provides a binary wire protocol for wallets
 
-## Features
+## What it does NOT do (yet)
 
-- Proof-of-Work consensus with configurable difficulty
-- UTXO-based accounting for transaction validation
-- Ed25519 digital signatures for transaction authorization
-- Merkle tree root verification for block integrity
-- Transaction mempool with input double-spend protection
-- Persistent storage using LevelDB for blocks and pending transactions
-- REST API built with Crow for easy integration
-- CLI inspection tools (list blocks, transactions, UTXOs, pool)
-- Deterministic serialization/deserialization for on-disk storage
-- Singleton node instance by design
+There is no miner, no peer-to-peer sync, no wallet UI, no REST API. Blocks
+are created only during genesis. `verifyBlock()` exists but is not wired to
+any network message. This is a foundation for learning and extension.
 
-## Dependencies
+## Quick start
 
-| Library              | Purpose |
-| :---------------- | :------- |
-| C++20        |   Language standard   |
-| nlohmann/json           |   JSON parsing and serialization   |
-| libsodium    |  Cryptography (Ed25519 signatures, hashing primitives)   |
-| LevelDB |  Persistent key-value storage   |
-| Crow |  Lightweight HTTP server / REST API   | 
+### Dependencies
 
-## Project Structure
+- CMake ≥ 3.16
+- C++23 compiler (GCC 14+ or Clang 18+)
+- [libsodium](https://doc.libsodium.org/) ≥ 1.0.18
+- [LevelDB](https://github.com/google/leveldb)
+- [standalone Asio](https://think-async.com/Asio/)
 
-```
-Axis/
-├── src/
-│   ├── blockchain.cpp        # Core blockchain logic & API handlers
-│   ├── block.cpp             # Block structures
-│   ├── transaction.cpp       # Transaction, UTXO, Input structures
-│   ├── cryptography.cpp      # Hashing, signing, verification, Merkle root
-│   ├── utils.cpp             # Helpers (hex/bytes, serialization utils)
-│   ├── db.cpp                # LevelDB wrapper
-│   ├── common.cpp            # Most used functions
-|   └── main.cpp              # Entry point / CLI
-├── include/
-│   ├── blockchain.h
-│   ├── block.h
-│   ├── transaction.h
-│   ├── cryptography.h
-│   ├── utils.h
-│   ├── databaseManager.h
-│   └── common.h
-└── README.md
+On Arch Linux:
+```bash
+pacman -S cmake ninja libsodium leveldb asio
 ```
 
-## Transaction Model
+### Build & test
 
-Axis uses an Unspent Transaction Output (UTXO) model:
+```bash
+cmake -S . -B build -DBUILD_TESTING=ON
+cmake --build build --parallel
+ctest --test-dir build --output-on-failure
+```
 
-   - UTXO: { owner (address), coins } tied to an output index of a specific transaction.
-   - Input: References a UTXO via { transaction_hash, output_index }.
-   - Transaction: Contains sender, receiver, amount, inputs, outputs, timestamp, and a computed transaction_hash.
-   - SignedTransaction: Wraps the transaction with the sender's public key and Ed25519 signature.
+### Run
 
-To spend coins, inputs must reference valid, unspent UTXOs owned by the signer. Outputs define new UTXOs distributed to recipients (and any change).
+```bash
+rm -rf blocks pool   # start fresh (optional)
+./build/axisd
+```
 
-## Genesis Block
+Starts a TCP server on port `9618`. Creates a genesis block with 15,000,000
+units sent to address `f45a20e043b01f65638a46831ce79b8fec3f6737` on first run.
 
-The genesis block is hardcoded to ensure all nodes start from the same chain origin. It contains:
-    - previousHash of all zeros
-    - Precomputed hash and merkleRoot satisfying difficulty
-    - A single coinbase transaction awarding GENESIS_REWARD to a fixed address
-    - Fixed nonce and timestamp
+## Project structure
 
-This block is created automatically on first run if the chain database is empty.
+```
+include/axis/       ── Public headers
+  types.h             Core type aliases, Writer/Reader serializers
+  util.h              Logger, hex conversion
+  crypto.h            Hash, sign, verify, Merkle root
+  tx.h                Transaction, OutPoint, TxOutput
+  block.h             BlockHeader, Block
+  chain.h             Chain (UTXO set, validation, persistence)
+  net.h               TCP server, wire protocol
 
-## How it works
+src/                ── Implementation files (one per header)
+  main.cpp            Entry point
+  chain.cpp           Chain, genesis, UTXO, pool
+  block.cpp           Block serialization
+  tx.cpp              Transaction serialization
+  crypto.cpp          Hashing, signatures, Merkle root
+  net.cpp             TCP server, message handling
 
-On startup, the node:
+tests/              ── Regression tests
+  core_serialization_tests.cpp
 
-1. Loads all blocks from blocksDB
-2. Rebuilds transactions, utxo, and blocksMap from loaded blocks
-3. Loads pending transactions from poolsDB into the mempool
-4. Creates the genesis block if the chain is empty
-5. Builds the PoW target
+blocks/             ── LevelDB database (chain data, created at runtime)
+pool/               ── LevelDB database (mempool data, created at runtime)
+```
 
-## Endpoints
+## Architecture in one diagram
 
-| Method              | Purpose | Description |
-| :--- | :------------------------ | :---------------------------------------|
-| GET  |  /chain                   | Get current chain summary |
-| GET  |  /blocks/\<hash>          | Get block details by hash |
-| GET  |  /transactions/\<hash>    | Get transaction details by hash |
-| POST |  /utxo                    | Get UTXOs for an address (to construct a transaction) |
-| POST |  /createTransaction       | Submit a signed transaction to the mempool |
-| POST |  /validateBlock           | Submit a mined block for validation and inclusion |
----
-## Current Limitations
-- Difficulty is currently static (TODO: dynamic adjustment)
-- UTXO lookups are O(n) (TODO: maintain a sorted/optimized structure)
-- No peer-to-peer networking yet
+```mermaid
+graph TD
+    A[Wallet / TCP Client] -->|GetUTXOs, CreateTransaction| B(Server)
+    B -->|query UTXO| C(Chain)
+    B -->|add signed tx| C
+    C --> D[(blocks LevelDB)]
+    C --> E[(pool LevelDB)]
+    C --> F[UTXO set in memory]
+    C --> G[pending txs in memory]
+    C --> H[Block chain in memory]
+    C --> I[crypto functions]
+```
+
+## Documentation
+
+Start with [`docs/README.md`](docs/README.md) — it indexes everything.
+
+| Document | What it covers |
+|----------|---------------|
+| [Architecture](docs/architecture.md) | High-level design, modules, data flow |
+| [Blockchain concepts](docs/blockchain.md) | Blockchain explained from zero |
+| [UTXO model](docs/utxo_model.md) | The UTXO accounting model |
+| [Transactions](docs/transaction_lifecycle.md) | Transaction creation through validation |
+| [Blocks](docs/block_lifecycle.md) | Block structure, genesis, chaining |
+| [Serialization](docs/serialization.md) | Binary wire and storage formats |
+| [Packet protocol](docs/packet_protocol.md) | TCP message format and types |
+| [Database](docs/database.md) | LevelDB key/value schemas |
+| [Cryptography](docs/cryptography.md) | Hashing, signing, addresses |
+| [Networking](docs/network.md) | Asio coroutines, connection lifecycle |
+| [Class reference](docs/class_reference.md) | Every class, method, field |
+| [Function reference](docs/function_reference.md) | Every non-trivial function |
+| [Developer guide](docs/developer_guide.md) | How to extend the project |
+| [Design decisions](docs/design_decisions.md) | Why things are the way they are |
+| [FAQ](docs/faq.md) | Common questions |
+| [Glossary](docs/glossary.md) | Every technical term defined |
+
+## License
+
+See the repository for license information (not specified in source).
