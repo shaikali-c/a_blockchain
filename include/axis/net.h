@@ -5,6 +5,7 @@
 #include <asio.hpp>
 
 #include <cstdint>
+#include <functional>
 #include <memory>
 #include <span>
 #include <string_view>
@@ -29,9 +30,14 @@ enum class MsgType : uint16_t {
     PoolResponse,
 };
 
+struct ServerEvents {
+    std::function<void(const Transaction&)> on_tx_accepted;
+    std::function<void(const Block&)> on_block_accepted;
+};
+
 class Server {
 public:
-    Server(Chain& chain, uint16_t port = 8889);
+    Server(Chain& chain, uint16_t port = 8889, ServerEvents events = {});
 
     void run();
 
@@ -39,6 +45,7 @@ private:
     asio::io_context ctx_;
     asio::ip::tcp::acceptor acceptor_;
     Chain& chain_;
+    ServerEvents events_;
 
     void do_accept();
     asio::awaitable<void> handle_client(

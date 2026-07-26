@@ -9,6 +9,7 @@
 #include <cstdint>
 #include <cstdio>
 #include <limits>
+#include <shared_mutex>
 #include <utility>
 
 static std::string hex_key(const Hash& h) {
@@ -51,7 +52,60 @@ Chain::Chain() {
 
 Chain::~Chain() = default;
 
-uint8_t Chain::get_difficulty() const { return difficulty_; }
+Block Chain::tip() const {
+    std::shared_lock lock(mutex_);
+    return blocks_.back();
+}
+
+Hash Chain::tip_hash() const {
+    std::shared_lock lock(mutex_);
+    return blocks_.back().hash();
+}
+
+uint32_t Chain::height() const {
+    std::shared_lock lock(mutex_);
+    return height_;
+}
+
+uint8_t Chain::get_difficulty() const {
+    std::shared_lock lock(mutex_);
+    return difficulty_;
+}
+
+Hash Chain::target() const {
+    std::shared_lock lock(mutex_);
+    return target_;
+}
+
+std::optional<Block> Chain::get_block(uint32_t height) const {
+    std::shared_lock lock(mutex_);
+    if (height >= blocks_.size())
+        return std::nullopt;
+    return blocks_[height];
+}
+
+std::optional<std::pair<uint32_t, Block>> Chain::get_block(const Hash& hash) const {
+    std::shared_lock lock(mutex_);
+    for (uint32_t i = 0; i < blocks_.size(); ++i) {
+        if (blocks_[i].hash() == hash)
+            return std::pair{i, blocks_[i]};
+    }
+    return std::nullopt;
+}
+
+std::vector<Block> Chain::get_blocks(uint32_t start, uint32_t count) const {
+    std::shared_lock lock(mutex_);
+    std::vector<Block> blocks;
+    if (start >= blocks_.size() || count == 0)
+        return blocks;
+
+    const auto available = static_cast<uint32_t>(blocks_.size() - start);
+    const auto end = start + std::min(count, available);
+    blocks.reserve(end - start);
+    for (uint32_t i = start; i < end; ++i)
+        blocks.push_back(blocks_[i]);
+    return blocks;
+}
 
 void Chain::load_blocks() {
     logging::info("loading blocks from database");
@@ -193,6 +247,7 @@ void Chain::dump_utxo() const {
 }
 
 TxError Chain::add_tx(const SignedTransaction& st) {
+    std::unique_lock lock(mutex_);
     const auto& tx = st.tx;
     const auto& pk = st.pubkey;
     const auto& sig = st.sig;
@@ -255,6 +310,7 @@ TxError Chain::add_tx(const SignedTransaction& st) {
 void Chain::get_utxos(
     const Address& addr,
     std::vector<std::pair<OutPoint, uint64_t>>& outpoints) const {
+    std::shared_lock lock(mutex_);
     for (const auto& [op, output] : utxo_) {
         if (output.recipient == addr && !pool_spent_.contains(op)) {
             outpoints.push_back(std::pair(op, output.amount));
@@ -285,14 +341,17 @@ std::string Chain::block_key(uint32_t height) {
 }
 
 bool Chain::pool_contains(const Hash& txid) const {
+    std::shared_lock lock(mutex_);
     return pool_.contains(txid);
 }
 
 Transaction Chain::get_pool_tx(const Hash& txid) const {
+    std::shared_lock lock(mutex_);
     return pool_.at(txid);
 }
 
 std::vector<Transaction> Chain::get_pool_txs() const {
+    std::shared_lock lock(mutex_);
     std::vector<Transaction> txs;
     txs.reserve(pool_.size());
     for (const auto& [txid, tx] : pool_)
@@ -313,6 +372,7 @@ bool Chain::verify_block_header(const Block& blk) const {
 }
 
 void Chain::add_block(const Block& blk) {
+    std::unique_lock lock(mutex_);
     for (const auto& tx : blk.transactions) {
         apply_tx(tx);
 

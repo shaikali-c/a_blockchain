@@ -120,8 +120,9 @@ std::expected<ParsedCreateBlock, std::string> parse_create_block_payload(
 
 } // namespace
 
-Server::Server(Chain& chain, uint16_t port)
-    : acceptor_(ctx_, {asio::ip::tcp::v4(), port}), chain_(chain) {}
+Server::Server(Chain& chain, uint16_t port, ServerEvents events)
+    : acceptor_(ctx_, {asio::ip::tcp::v4(), port}), chain_(chain),
+      events_(std::move(events)) {}
 
 void Server::run() {
     do_accept();
@@ -272,6 +273,8 @@ asio::awaitable<void> Server::on_create_tx(
             logging::reject(err_reason);
         } else {
             logging::info("tx accepted");
+            if (events_.on_tx_accepted)
+                events_.on_tx_accepted(st.tx);
         }
 
         std::cout << st.tx << "\n";
@@ -322,6 +325,8 @@ asio::awaitable<void> Server::on_create_block(
                 logging::info(
                     "block accepted at height " + std::to_string(chain_.height())
                 );
+                if (events_.on_block_accepted)
+                    events_.on_block_accepted(blk);
                 std::cout << blk << "\n";
             }
         }

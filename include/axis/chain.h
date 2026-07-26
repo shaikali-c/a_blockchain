@@ -5,6 +5,8 @@
 #include <cstddef>
 #include <cstring>
 #include <memory>
+#include <optional>
+#include <shared_mutex>
 #include <unordered_map>
 #include <utility>
 #include <vector>
@@ -25,11 +27,15 @@ public:
         std::vector<std::pair<OutPoint, uint64_t>>& outpoints
     ) const;
 
-    const Block& tip() const { return blocks_.back(); }
-    const Hash& tip_hash() const { return blocks_.back().hash(); }
-    uint32_t height() const { return height_; }
+    Block tip() const;
+    Hash tip_hash() const;
+    uint32_t height() const;
     uint8_t get_difficulty() const;
-    const Hash& target() const { return target_; }
+    Hash target() const;
+
+    std::optional<Block> get_block(uint32_t height) const;
+    std::optional<std::pair<uint32_t, Block>> get_block(const Hash& hash) const;
+    std::vector<Block> get_blocks(uint32_t start, uint32_t count) const;
 
     std::vector<Transaction> get_pool_txs() const;
     bool pool_contains(const Hash& txid) const;
@@ -45,6 +51,7 @@ public:
     };
     std::unordered_map<Hash, Transaction, HashHasher> pool_;
 private:
+    mutable std::shared_mutex mutex_;
     std::vector<Block> blocks_;
     uint32_t height_ = 0;
     uint8_t difficulty_ = 3;

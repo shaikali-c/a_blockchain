@@ -24,6 +24,7 @@ add_library(axis_core
     "src/tx.cpp"
     "src/crypto.cpp"
     "src/net.cpp"
+    "src/web.cpp"
 )
 
 target_include_directories(axis_core
