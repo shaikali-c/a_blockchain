@@ -87,5 +87,5 @@ It does not include public key or signature. This allows the same transaction bo
 - No domain separation between transaction hashes, block hashes, Merkle internal nodes, and address derivation.
 - No chain ID or replay-protection field in transaction hash preimage.
 - No signature malleability policy beyond libsodium verification.
-- No secure key storage or wallet implementation in this repository.
+- No secure key storage in this repository (wallet key management lives in a companion repository).
 - No authenticated network messages.

@@ -11,7 +11,7 @@ Axis is an educational C++23 blockchain node. It currently implements:
 - A Crow HTTP/JSON API and WebSocket event stream for explorers and dashboards.
 - A small regression test executable for serialization and Merkle behavior.
 
-Important current limitations are documented explicitly throughout these files. In particular, Axis does not implement peer-to-peer consensus, fork choice, difficulty retargeting, authenticated APIs, TLS, wallet key management, or block validation as a reusable public `Chain` API. Blocks are accepted through the TCP `CreateBlock` handler after local checks in `src/net.cpp`.
+Important current limitations are documented explicitly throughout these files. In particular, Axis does not implement peer-to-peer consensus, fork choice, difficulty retargeting, authenticated APIs, TLS, or block validation as a reusable public `Chain` API. Wallet and mining implementations live in companion repositories. Blocks are accepted through the TCP `CreateBlock` handler after local checks in `src/net.cpp`.
 
 ## Reading Order
 

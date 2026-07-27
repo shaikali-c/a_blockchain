@@ -23,11 +23,10 @@ Axis intentionally omits many production blockchain features:
 
 - no peer-to-peer synchronization,
 - no fork choice or chain reorganization,
-- no internal miner loop,
 - no difficulty retargeting,
 - no authenticated or encrypted API layer,
-- no wallet/key-management UI,
 - no enforced block reward in the current block submission path.
+- wallet and mining implementations live in companion repositories (not in this codebase).
 
 See [`docs/FutureRoadmap.md`](docs/FutureRoadmap.md) for realistic future improvements.
 

@@ -45,7 +45,7 @@ void test_block_roundtrip() {
     ph.fill(0x55);
 
     Transaction coinbase{{}, {{addr, 99}}, Timestamp{123456789}};
-    Block original{ph, {std::move(coinbase)}, Timestamp{123456789}, 9};
+    Block original{ph, {std::move(coinbase)}, Timestamp{123456789}, 9, 3};
 
     auto wire = original.serialize();
     Block restored{wire};
@@ -55,6 +55,7 @@ void test_block_roundtrip() {
     assert(restored.header().merkle_root == original.header().merkle_root);
     assert(restored.header().nonce == original.header().nonce);
     assert(restored.header().timestamp == original.header().timestamp);
+    assert(restored.header().difficulty == original.header().difficulty);
     assert(restored.transactions.size() == 1);
     assert(restored.transactions[0].txid() ==
            original.transactions[0].txid());

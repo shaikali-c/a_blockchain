@@ -2,12 +2,13 @@
 
 #include "axis/util.h"
 
+#include <nlohmann/json.hpp>
+
 #include <algorithm>
 #include <charconv>
 #include <cstdint>
 #include <exception>
 #include <limits>
-#include <sstream>
 #include <stdexcept>
 #include <string>
 #include <string_view>
@@ -15,38 +16,19 @@
 
 namespace {
 
+using json = nlohmann::json;
+
 constexpr uint32_t kDefaultBlockCount = 10;
 constexpr uint32_t kMaxBlockCount = 100;
 constexpr size_t kMaxRawTxHexChars = 128 * 1024;
 
-std::string json_escape(std::string_view value) {
-    std::string out;
-    out.reserve(value.size() + 8);
-    for (const char ch : value) {
-        switch (ch) {
-        case '"': out += "\\\""; break;
-        case '\\': out += "\\\\"; break;
-        case '\b': out += "\\b"; break;
-        case '\f': out += "\\f"; break;
-        case '\n': out += "\\n"; break;
-        case '\r': out += "\\r"; break;
-        case '\t': out += "\\t"; break;
-        default:
-            if (static_cast<unsigned char>(ch) < 0x20) {
-                out += "\\u00";
-                const char* hex = "0123456789abcdef";
-                out += hex[(ch >> 4) & 0x0f];
-                out += hex[ch & 0x0f];
-            } else {
-                out += ch;
-            }
-        }
-    }
-    return out;
-}
+constexpr size_t kOutPointSize = 36;   // hash(32) + index(4)
+constexpr size_t kTxOutputSize = 28;   // addr(20) + amount(8)
+constexpr size_t kTxFixedOverhead = 48; // txid(32) + timestamp(8) + in_count(4) + out_count(4)
+constexpr size_t kBlockHeaderSize = 82; // prev_hash(32) + merkle_root(32) + timestamp(8) + nonce(8) + difficulty(2)
 
-crow::response json_response(int code, std::string body) {
-    crow::response res{code, std::move(body)};
+crow::response json_response(int code, json body) {
+    crow::response res{code, body.dump()};
     res.set_header("Content-Type", "application/json");
     res.set_header("Access-Control-Allow-Origin", "*");
     res.set_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS");
@@ -55,9 +37,8 @@ crow::response json_response(int code, std::string body) {
 }
 
 crow::response error_response(int code, std::string_view message) {
-    std::ostringstream os;
-    os << "{\"error\":\"" << json_escape(message) << "\",\"code\":" << code << "}";
-    return json_response(code, os.str());
+    json j = {{"error", message}, {"code", code}};
+    return json_response(code, std::move(j));
 }
 
 bool parse_u32(std::string_view text, uint32_t& out) {
@@ -133,88 +114,92 @@ std::string tx_error_to_string(TxError error) {
     return "unknown";
 }
 
-std::string outpoint_json(const OutPoint& outpoint) {
-    std::ostringstream os;
-    os << "{\"txid\":\"" << to_hex(outpoint.txid) << "\",\"index\":" << outpoint.index << "}";
-    return os.str();
+json outpoint_json(const OutPoint& outpoint) {
+    return {{"txid", to_hex(outpoint.txid)}, {"index", outpoint.index}, {"size", kOutPointSize}};
 }
 
-std::string output_json(const TxOutput& output) {
-    std::ostringstream os;
-    os << "{\"recipient\":\"" << to_hex(output.recipient) << "\",\"amount\":" << output.amount << "}";
-    return os.str();
+json output_json(const TxOutput& output) {
+    return {{"recipient", to_hex(output.recipient)}, {"amount", output.amount}, {"size", kTxOutputSize}};
 }
 
-std::string transaction_json(const Transaction& tx) {
-    std::ostringstream os;
-    os << "{\"txid\":\"" << to_hex(tx.txid()) << "\","
-       << "\"timestamp\":" << tx.timestamp.value << ","
-       << "\"coinbase\":" << (tx.is_coinbase() ? "true" : "false") << ","
-       << "\"inputs\":[";
-    for (size_t i = 0; i < tx.inputs.size(); ++i) {
-        if (i > 0)
-            os << ',';
-        os << outpoint_json(tx.inputs[i]);
+json transaction_json(const Transaction& tx) {
+    json j;
+    j["txid"] = to_hex(tx.txid());
+    j["timestamp"] = tx.timestamp.value;
+    j["coinbase"] = tx.is_coinbase();
+    j["size"] = kTxFixedOverhead + kOutPointSize * tx.inputs.size() + kTxOutputSize * tx.outputs.size();
+    j["inputs"] = json::array();
+    for (const auto& in : tx.inputs)
+        j["inputs"].push_back(outpoint_json(in));
+    j["outputs"] = json::array();
+    for (const auto& out : tx.outputs)
+        j["outputs"].push_back(output_json(out));
+    return j;
+}
+
+size_t block_serialized_size(const Block& block) {
+    size_t s = kBlockHeaderSize + 4; // header + tx count
+    for (const auto& tx : block.transactions) {
+        size_t tx_size = kTxFixedOverhead + kOutPointSize * tx.inputs.size() + kTxOutputSize * tx.outputs.size();
+        s += 4 + tx_size; // size prefix + tx payload
     }
-    os << "],\"outputs\":[";
-    for (size_t i = 0; i < tx.outputs.size(); ++i) {
-        if (i > 0)
-            os << ',';
-        os << output_json(tx.outputs[i]);
-    }
-    os << "]}";
-    return os.str();
+    return s;
 }
 
-std::string block_summary_json(const Block& block, uint32_t height) {
-    std::ostringstream os;
-    os << "{\"height\":" << height << ","
-       << "\"hash\":\"" << to_hex(block.hash()) << "\","
-       << "\"previousHash\":\"" << to_hex(block.header().prev_hash) << "\","
-       << "\"merkleRoot\":\"" << to_hex(block.header().merkle_root) << "\","
-       << "\"timestamp\":" << block.header().timestamp.value << ","
-       << "\"nonce\":" << block.header().nonce << ","
-       << "\"transactionCount\":" << block.transactions.size() << "}";
-    return os.str();
+json block_summary_json(const Block& block, uint32_t height) {
+    json transactionsJson;
+    for (const auto& tx : block.transactions)
+        transactionsJson.push_back(transaction_json(tx));
+    return {
+        {"height", height},
+        {"hash", to_hex(block.hash())},
+        {"previousHash", to_hex(block.header().prev_hash)},
+        {"merkleRoot", to_hex(block.header().merkle_root)},
+        {"timestamp", block.header().timestamp.value},
+        {"nonce", block.header().nonce},
+        {"difficulty", block.header().difficulty},
+        {"transactionCount", block.transactions.size()},
+        {"transactions", transactionsJson},
+        {"size", block_serialized_size(block)}
+    };
 }
 
-std::string block_json(const Block& block, uint32_t height) {
-    std::ostringstream os;
-    os << "{\"height\":" << height << ","
-       << "\"hash\":\"" << to_hex(block.hash()) << "\","
-       << "\"previousHash\":\"" << to_hex(block.header().prev_hash) << "\","
-       << "\"merkleRoot\":\"" << to_hex(block.header().merkle_root) << "\","
-       << "\"timestamp\":" << block.header().timestamp.value << ","
-       << "\"nonce\":" << block.header().nonce << ","
-       << "\"txids\":[";
-    for (size_t i = 0; i < block.transactions.size(); ++i) {
-        if (i > 0)
-            os << ',';
-        os << '"' << to_hex(block.transactions[i].txid()) << '"';
-    }
-    os << "],\"transactions\":[";
-    for (size_t i = 0; i < block.transactions.size(); ++i) {
-        if (i > 0)
-            os << ',';
-        os << transaction_json(block.transactions[i]);
-    }
-    os << "]}";
-    return os.str();
+json block_json(const Block& block, uint32_t height) {
+    json j;
+    j["height"] = height;
+    j["hash"] = to_hex(block.hash());
+    j["previousHash"] = to_hex(block.header().prev_hash);
+    j["merkleRoot"] = to_hex(block.header().merkle_root);
+    j["timestamp"] = block.header().timestamp.value;
+    j["nonce"] = block.header().nonce;
+    j["difficulty"] = block.header().difficulty;
+    j["size"] = block_serialized_size(block);
+    j["txids"] = json::array();
+    for (const auto& tx : block.transactions)
+        j["txids"].push_back(to_hex(tx.txid()));
+    j["transactions"] = json::array();
+    for (const auto& tx : block.transactions)
+        j["transactions"].push_back(transaction_json(tx));
+    return j;
 }
 
-std::string event_new_tx_json(const Transaction& tx) {
-    std::ostringstream os;
-    os << "{\"type\":\"new_tx\",\"txid\":\"" << to_hex(tx.txid())
-       << "\",\"transaction\":" << transaction_json(tx) << "}";
-    return os.str();
+json event_new_tx_json(const Transaction& tx) {
+    return {
+        {"type", "new_tx"},
+        {"txid", to_hex(tx.txid())},
+        {"size", kTxFixedOverhead + kOutPointSize * tx.inputs.size() + kTxOutputSize * tx.outputs.size()},
+        {"transaction", transaction_json(tx)}
+    };
 }
 
-std::string event_new_block_json(const Block& block) {
-    std::ostringstream os;
-    os << "{\"type\":\"new_block\",\"hash\":\"" << to_hex(block.hash())
-       << "\",\"timestamp\":" << block.header().timestamp.value
-       << ",\"transactionCount\":" << block.transactions.size() << "}";
-    return os.str();
+json event_new_block_json(const Block& block) {
+    return {
+        {"type", "new_block"},
+        {"hash", to_hex(block.hash())},
+        {"timestamp", block.header().timestamp.value},
+        {"transactionCount", block.transactions.size()},
+        {"size", block_serialized_size(block)}
+    };
 }
 
 } // namespace
@@ -233,11 +218,11 @@ void WebServer::stop() {
 }
 
 void WebServer::broadcast_new_tx(const Transaction& tx) {
-    broadcast_text(event_new_tx_json(tx));
+    broadcast_text(event_new_tx_json(tx).dump());
 }
 
 void WebServer::broadcast_new_block(const Block& block) {
-    broadcast_text(event_new_block_json(block));
+    broadcast_text(event_new_block_json(block).dump());
 }
 
 void WebServer::broadcast_text(const std::string& message) {
@@ -249,13 +234,14 @@ void WebServer::broadcast_text(const std::string& message) {
 void WebServer::setup_routes() {
     CROW_ROUTE(app_, "/api/status").methods(crow::HTTPMethod::GET)
     ([this]() {
-        std::ostringstream os;
-        os << "{\"status\":\"online\","
-           << "\"version\":\"0.1\","
-           << "\"blockHeight\":" << chain_.height() << ","
-           << "\"difficulty\":" << static_cast<uint32_t>(chain_.get_difficulty()) << ","
-           << "\"tipHash\":\"" << to_hex(chain_.tip_hash()) << "\"}";
-        return json_response(200, os.str());
+        json j = {
+            {"status", "online"},
+            {"version", "0.1"},
+            {"blockHeight", chain_.height()},
+            {"difficulty", static_cast<uint32_t>(chain_.get_difficulty())},
+            {"tipHash", to_hex(chain_.tip_hash())}
+        };
+        return json_response(200, std::move(j));
     });
 
     CROW_ROUTE(app_, "/api/tip").methods(crow::HTTPMethod::GET)
@@ -298,35 +284,144 @@ void WebServer::setup_routes() {
         count = std::min(count, kMaxBlockCount);
 
         const auto blocks = chain_.get_blocks(start, count);
-        std::ostringstream os;
-        os << "{\"blocks\":[";
-        for (size_t i = 0; i < blocks.size(); ++i) {
-            if (i > 0)
-                os << ',';
-            os << block_summary_json(blocks[i], start + static_cast<uint32_t>(i));
-        }
-        os << "],\"total\":" << chain_.height() << "}";
-        return json_response(200, os.str());
+        json j;
+        j["blocks"] = json::array();
+        for (size_t i = 0; i < blocks.size(); ++i)
+            j["blocks"].push_back(block_summary_json(blocks[i], start + static_cast<uint32_t>(i)));
+        j["total"] = chain_.height();
+        return json_response(200, std::move(j));
     });
 
     CROW_ROUTE(app_, "/api/mempool").methods(crow::HTTPMethod::GET)
     ([this]() {
         const auto txs = chain_.get_pool_txs();
-        std::ostringstream os;
-        os << "{\"size\":" << txs.size() << ",\"txids\":[";
-        for (size_t i = 0; i < txs.size(); ++i) {
-            if (i > 0)
-                os << ',';
-            os << '"' << to_hex(txs[i].txid()) << '"';
+        json j;
+        j["size"] = txs.size();
+        j["txids"] = json::array();
+        for (const auto& tx : txs)
+            j["txids"].push_back(to_hex(tx.txid()));
+        j["transactions"] = json::array();
+        for (const auto& tx : txs)
+            j["transactions"].push_back(transaction_json(tx));
+        return json_response(200, std::move(j));
+    });
+
+    CROW_ROUTE(app_, "/api/charts").methods(crow::HTTPMethod::GET)
+    ([this]() {
+        const auto height = chain_.height();
+        json j;
+
+        // blocksOverTime — group blocks by hour for the last 24 slots
+        j["blocksOverTime"] = json::array();
+        if (height > 0) {
+            const auto now = static_cast<uint64_t>(std::time(nullptr));
+            constexpr uint64_t kHour = 3600;
+            uint64_t current_hour = now - (now % kHour);
+            std::map<uint64_t, uint32_t> hour_counts;
+            for (uint32_t h = 0; h < height; ++h) {
+                auto block = chain_.get_block(h);
+                if (!block) continue;
+                uint64_t bh = block->header().timestamp.value - (block->header().timestamp.value % kHour);
+                if (bh > current_hour - 23 * kHour)
+                    hour_counts[bh]++;
+            }
+            for (uint64_t h = current_hour - 23 * kHour; h <= current_hour; h += kHour) {
+                char buf[6];
+                std::tm tm{};
+                tm.tm_sec = 0; tm.tm_min = 0; tm.tm_hour = 0;
+                std::time_t t = static_cast<std::time_t>(h);
+                gmtime_r(&t, &tm);
+                std::strftime(buf, sizeof(buf), "%H:%M", &tm);
+                j["blocksOverTime"].push_back({{"time", buf}, {"blocksMined", hour_counts[h]}});
+            }
         }
-        os << "],\"transactions\":[";
-        for (size_t i = 0; i < txs.size(); ++i) {
-            if (i > 0)
-                os << ',';
-            os << transaction_json(txs[i]);
+
+        // txPerBlock — last 20 blocks
+        j["txPerBlock"] = json::array();
+        {
+            const auto now = static_cast<uint64_t>(std::time(nullptr));
+            uint32_t start = height > 20 ? height - 20 : 0;
+            for (uint32_t h = start; h < height; ++h) {
+                auto block = chain_.get_block(h);
+                if (!block) continue;
+                uint64_t dt = now - block->header().timestamp.value;
+                std::string rel;
+                if (dt < 60)      rel = std::to_string(dt) + "s ago";
+                else if (dt < 3600) rel = std::to_string(dt / 60) + "m ago";
+                else                rel = std::to_string(dt / 3600) + "h ago";
+                j["txPerBlock"].push_back({
+                    {"blockHeight", "#" + std::to_string(h)},
+                    {"txCount", static_cast<uint64_t>(block->transactions.size())},
+                    {"time", rel}
+                });
+            }
         }
-        os << "]}";
-        return json_response(200, os.str());
+
+        // avgBlockSize — group by hour (same buckets as blocksOverTime)
+        j["avgBlockSize"] = json::array();
+        if (height > 0) {
+            const auto now = static_cast<uint64_t>(std::time(nullptr));
+            constexpr uint64_t kHour = 3600;
+            uint64_t current_hour = now - (now % kHour);
+            std::map<uint64_t, std::pair<uint64_t, uint32_t>> hour_sizes;
+            for (uint32_t h = 0; h < height; ++h) {
+                auto block = chain_.get_block(h);
+                if (!block) continue;
+                uint64_t bh = block->header().timestamp.value - (block->header().timestamp.value % kHour);
+                if (bh > current_hour - 23 * kHour) {
+                    hour_sizes[bh].first += block_serialized_size(*block);
+                    hour_sizes[bh].second++;
+                }
+            }
+            for (uint64_t h = current_hour - 23 * kHour; h <= current_hour; h += kHour) {
+                char buf[6];
+                std::tm tm{};
+                std::time_t t = static_cast<std::time_t>(h);
+                gmtime_r(&t, &tm);
+                std::strftime(buf, sizeof(buf), "%H:%M", &tm);
+                auto& [total, count] = hour_sizes[h];
+                j["avgBlockSize"].push_back({
+                    {"time", buf},
+                    {"avgSize", count > 0 ? static_cast<uint64_t>(total / count) : 0}
+                });
+            }
+        }
+
+        // networkActivity — TPS from recent blocks (last 10)
+        j["networkActivity"] = json::array();
+        {
+            const auto now = static_cast<uint64_t>(std::time(nullptr));
+            uint32_t start = height > 10 ? height - 10 : 0;
+            uint64_t total_tx = 0;
+            uint64_t time_span = 0;
+            for (uint32_t h = start; h < height; ++h) {
+                auto block = chain_.get_block(h);
+                if (!block) continue;
+                total_tx += block->transactions.size();
+                if (h == start) {
+                    time_span = now - block->header().timestamp.value;
+                }
+            }
+            // Show 3 time windows: 1m, 5m, 1h
+            const std::pair<const char*, uint64_t> windows[] = {
+                {"1m ago", 60}, {"5m ago", 300}, {"1h ago", 3600}
+            };
+            for (const auto& [label, secs] : windows) {
+                uint64_t recent_tx = 0;
+                for (uint32_t h = height; h > 0; --h) {
+                    auto block = chain_.get_block(h - 1);
+                    if (!block) continue;
+                    if (now - block->header().timestamp.value > secs) break;
+                    recent_tx += block->transactions.size();
+                }
+                j["networkActivity"].push_back({
+                    {"time", label},
+                    {"tps", secs > 0 ? static_cast<double>(recent_tx) / static_cast<double>(secs) : 0.0}
+                });
+            }
+        }
+
+        return json_response(200, std::move(j));
     });
 
     auto utxos_handler = [this](const std::string& address_hex) {
@@ -340,22 +435,21 @@ void WebServer::setup_routes() {
         std::vector<std::pair<OutPoint, uint64_t>> utxos;
         chain_.get_utxos(address, utxos);
 
+        json j;
+        j["address"] = to_hex(address);
         uint64_t balance = 0;
-        std::ostringstream os;
-        os << "{\"address\":\"" << to_hex(address) << "\",\"balance\":";
-        for (const auto& [_, amount] : utxos)
+        j["utxos"] = json::array();
+        for (const auto& [outpoint, amount] : utxos) {
             balance += amount;
-        os << balance << ",\"utxos\":[";
-        for (size_t i = 0; i < utxos.size(); ++i) {
-            if (i > 0)
-                os << ',';
-            const auto& [outpoint, amount] = utxos[i];
-            os << "{\"txid\":\"" << to_hex(outpoint.txid) << "\","
-               << "\"index\":" << outpoint.index << ","
-               << "\"amount\":" << amount << "}";
+            j["utxos"].push_back({
+                {"txid", to_hex(outpoint.txid)},
+                {"index", outpoint.index},
+                {"amount", amount},
+                {"size", kOutPointSize}
+            });
         }
-        os << "]}";
-        return json_response(200, os.str());
+        j["balance"] = balance;
+        return json_response(200, std::move(j));
     };
 
     CROW_ROUTE(app_, "/api/utxos/<string>").methods(crow::HTTPMethod::GET)(utxos_handler);
@@ -381,9 +475,8 @@ void WebServer::setup_routes() {
                 return error_response(400, reason);
 
             broadcast_new_tx(signed_tx.tx);
-            std::ostringstream os;
-            os << "{\"txid\":\"" << txid << "\",\"status\":\"submitted\"}";
-            return json_response(200, os.str());
+            json j = {{"txid", txid}, {"status", "submitted"}};
+            return json_response(200, std::move(j));
         } catch (const std::exception& e) {
             return error_response(400, e.what());
         }
@@ -391,7 +484,7 @@ void WebServer::setup_routes() {
 
     CROW_ROUTE(app_, "/api/<path>").methods(crow::HTTPMethod::OPTIONS)
     ([](const crow::request&, const std::string&) {
-        return json_response(204, "");
+        return json_response(204, json{});
     });
 
     CROW_ROUTE(app_, "/ws/events")
@@ -401,7 +494,7 @@ void WebServer::setup_routes() {
             std::lock_guard lock(ws_mutex_);
             ws_connections_.insert(&connection);
         }
-        connection.send_text("{\"type\":\"connected\"}");
+        connection.send_text(R"({"type":"connected"})");
     })
     .onclose([this](crow::websocket::connection& connection, const std::string&, uint16_t) {
             std::lock_guard lock(ws_mutex_);
@@ -410,7 +503,7 @@ void WebServer::setup_routes() {
     .onmessage([](crow::websocket::connection& connection, const std::string& message, bool is_binary) {
         if (is_binary)
             return;
-        if (message == "ping" || message == "{\"type\":\"ping\"}")
-            connection.send_text("{\"type\":\"pong\"}");
+        if (message == "ping" || message == R"({"type":"ping"})")
+            connection.send_text(R"({"type":"pong"})");
     });
 }

@@ -74,7 +74,7 @@ A transaction is accepted into the mempool only if:
 11. No input is already reserved in `pool_spent_`.
 12. LevelDB accepts the pool write.
 
-There is no fee field. If `sum_in > sum_out`, the difference is not explicitly recorded or assigned to the miner in the current implementation.
+There is no fee field in this repository. If `sum_in > sum_out`, the difference is not explicitly recorded or assigned to the miner in the current implementation. Fee accounting is handled in the companion mining repository.
 
 ## Serialization
 
@@ -108,4 +108,4 @@ Deserialization does not enforce this invariant; it trusts the serialized txid f
 - TxID computation is O(inputs + outputs).
 - Serialization/deserialization is O(inputs + outputs).
 - `add_tx()` input validation is O(inputs + outputs) average-case with hash-map lookups.
-- Address UTXO discovery is not indexed; wallets call `get_utxos()`, which scans the whole UTXO map.
+- Address UTXO discovery is not indexed; callers use `get_utxos()`, which scans the whole UTXO map. Wallet implementations in companion repositories work around this limitation or add their own indexing.

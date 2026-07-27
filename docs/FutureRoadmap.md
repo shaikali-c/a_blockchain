@@ -57,7 +57,5 @@ This roadmap lists realistic improvements based on current implementation gaps. 
 
 ## Product Features
 
-- Wallet CLI or library.
-- Miner CLI or mining loop.
 - Explorer frontend backed by the HTTP/WebSocket API.
 - Peer status and node metrics endpoints.

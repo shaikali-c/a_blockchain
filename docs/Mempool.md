@@ -32,14 +32,14 @@ Confirmed-chain duplicate checks are indirect: once a transaction is mined, its 
 
 ## Mining Selection
 
-Axis does not choose transactions for miners. Instead:
+This repository does not choose transactions for miners. Instead:
 
 - TCP `GetPool` returns pending txids.
-- A miner/client builds a `CreateBlock` request containing selected txids.
+- A miner/client (see companion mining repository) builds a `CreateBlock` request containing selected txids.
 - `parse_create_block_payload()` requires every txid to exist in `pool_`.
 - The server reconstructs the block using current pool transaction bodies.
 
-There is no fee sorting, max block size, priority, age, or eviction policy.
+There is no fee sorting, max block size, priority, age, or eviction policy in this repository.
 
 ## Eviction/Removal
 

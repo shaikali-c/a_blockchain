@@ -29,4 +29,4 @@ sequenceDiagram
     Server-->>Miner: CreateBlockResponse
 ```
 
-Current implementation note: mining itself is external. Axis verifies a submitted candidate but does not run a mining loop.
+Current implementation note: the mining loop lives in the companion mining repository. Axis verifies a submitted candidate but does not run a mining loop itself.

@@ -1,6 +1,6 @@
 # Mining and Block Creation
 
-Axis does not include an internal miner loop. Mining is performed by an external TCP client that queries node state and submits a `CreateBlock` packet.
+Axis does not include a mining implementation in this repository. Mining is performed by an external TCP client (see companion repositories) that queries node state and submits a `CreateBlock` packet.
 
 ## Miner Inputs
 
@@ -62,9 +62,8 @@ However, the current block submission path does not enforce that submitted coinb
 
 ## Mining Limitations
 
-- No internal mining loop.
-- No fee accounting.
-- No enforced block reward.
+- No fee accounting in this repository.
+- No enforced block reward in the current block submission path.
 - No max transaction count/block size.
 - No stale block recovery beyond rejection by previous hash.
 - No peer broadcast beyond local WebSocket notification.

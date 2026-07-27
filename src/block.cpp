@@ -16,6 +16,7 @@ void BlockHeader::serialize(Writer& w) const {
     w.put_hash(merkle_root);
     w.put_u64(timestamp.value);
     w.put_u64(nonce);
+    w.put_u16(difficulty);
 }
 
 BlockHeader BlockHeader::deserialize(Reader& r) {
@@ -24,6 +25,7 @@ BlockHeader BlockHeader::deserialize(Reader& r) {
         r.take_hash(),
         Timestamp{r.take_u64()},
         r.take_u64(),
+        r.take_u16(),
     };
 }
 
@@ -35,8 +37,8 @@ static Hash compute_block_merkle_root(const std::vector<Transaction>& txs) {
     return compute_merkle_root(leaves);
 }
 
-Block::Block(Hash prev, std::vector<Transaction> txs, Timestamp ts, uint64_t nonce)
-    : header_{prev, {}, ts, nonce}, transactions(std::move(txs)) {
+Block::Block(Hash prev, std::vector<Transaction> txs, Timestamp ts, uint64_t nonce, uint16_t diff)
+    : header_{prev, {}, ts, nonce, diff}, transactions(std::move(txs)) {
     header_.merkle_root = compute_block_merkle_root(transactions);
     cached_hash_ = header_.hash();
 }
@@ -81,6 +83,7 @@ std::ostream& operator<<(std::ostream& os, const BlockHeader& hdr) {
     os << "\xe2\x94\x9c\xe2\x94\x80 Previous:     " << short_hex(hdr.prev_hash) << "\n";
     os << "\xe2\x94\x9c\xe2\x94\x80 Merkle Root:  " << short_hex(hdr.merkle_root) << "\n";
     os << "\xe2\x94\x9c\xe2\x94\x80 Timestamp:    " << format_timestamp(hdr.timestamp) << "\n";
+    os << "\xe2\x94\x9c\xe2\x94\x80 Difficulty:   " << hdr.difficulty << "\n";
     os << "\xe2\x94\x9c\xe2\x94\x80 Nonce:        " << hdr.nonce << "\n";
     return os;
 }

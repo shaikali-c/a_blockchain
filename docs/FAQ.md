@@ -2,7 +2,7 @@
 
 ## Is Axis production cryptocurrency software?
 
-No. It is educational. It lacks P2P networking, fork choice, robust consensus, authentication, rate limiting, payload hardening, wallet security, and many validation rules.
+No. It is educational. It lacks P2P networking, fork choice, robust consensus, authentication, rate limiting, payload hardening, and many validation rules. Wallet and mining implementations live in companion repositories.
 
 ## What ports does it use?
 
@@ -22,7 +22,7 @@ Yes, pending transaction bodies are stored in the `pool` LevelDB database. Howev
 
 ## Does Axis mine blocks?
 
-No. External clients query tip/difficulty/pool, mine candidate headers, and submit `CreateBlock` packets.
+Mining is performed by external clients (see companion repositories for a mining implementation). The miner queries tip/difficulty/pool, mines candidate headers, and submits `CreateBlock` packets.
 
 ## Are block rewards enforced?
 

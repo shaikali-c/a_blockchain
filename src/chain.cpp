@@ -186,7 +186,7 @@ void Chain::create_genesis() {
     std::vector<TxOutput> outs = {{GENESIS_ADDR, 15 * UNITS}};
     Transaction coinbase{{}, std::move(outs), Timestamp{1781545365}};
 
-    Block blk{prev, {std::move(coinbase)}, Timestamp{1781545365}, 31496};
+    Block blk{prev, {std::move(coinbase)}, Timestamp{1781545365}, 31496, difficulty_};
     store_block(blk);
     for (const auto& tx : blk.transactions)
         apply_tx(tx);
@@ -365,7 +365,7 @@ bool Chain::verify_block_header(const Block& blk) const {
     if (blk.header().timestamp <= tip().header().timestamp)
         return false;
     Hash block_hash = blk.hash();
-    for (int i = 0; i < difficulty_; i++)
+    for (int i = 0; i < blk.header().difficulty; i++)
         if (block_hash[i] != 0)
             return false;
     return true;

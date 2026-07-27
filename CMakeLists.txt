@@ -13,6 +13,7 @@ find_package(leveldb CONFIG REQUIRED)
 find_package(PkgConfig REQUIRED)
 find_package(Crow CONFIG REQUIRED)
 pkg_check_modules(LIBSODIUM REQUIRED libsodium>=1.0.18)
+find_package(nlohmann_json REQUIRED)
 find_package(asio CONFIG QUIET)
 if(NOT asio_FOUND)
     pkg_check_modules(ASIO REQUIRED asio)
@@ -35,6 +36,7 @@ target_include_directories(axis_core
 target_link_libraries(axis_core
     PRIVATE
     leveldb::leveldb
+    nlohmann_json::nlohmann_json
     ${LIBSODIUM_LIBRARIES}
     Crow::Crow
 )

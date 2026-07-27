@@ -58,7 +58,7 @@ These are not necessarily problems at current scale, but they are the most likel
 
 1. Add explicit max payload sizes and count limits before vector allocation.
 2. Add block hash index: `unordered_map<Hash, uint32_t>`.
-3. Add address UTXO index for fast wallet queries.
+3. Add address UTXO index for fast wallet queries (wallet implementations in companion repositories currently work around this).
 4. Store UTXO snapshots or incremental indexes if chain grows.
 5. Use LevelDB write batches for atomic and faster block/pool updates.
 6. Refactor `setup_routes()` into route groups/helper classes.

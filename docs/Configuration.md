@@ -12,7 +12,7 @@ Axis currently has minimal runtime configuration. Most values are hardcoded in s
 | Pool DB path | `pool` | `Chain::Chain()` |
 | Difficulty | `3` leading zero bytes | `Chain::difficulty_` default member initializer |
 | Unit scale | `1,000,000` base units per AXIS | `Chain::UNITS`, `format_amount()` default |
-| Miner reward constant | `3 * UNITS` | `Chain::MINER_REWARD`, currently not enforced in block submission |
+| Miner reward constant | `3 * UNITS` | `Chain::MINER_REWARD`, currently not enforced in block submission (enforcement lives in the companion mining repository) |
 | Genesis reward | `15 * UNITS` | `Chain::create_genesis()` |
 | Genesis recipient | `f45a20e043b01f65638a46831ce79b8fec3f6737` | `GENESIS_ADDR` in `src/chain.cpp` |
 | Genesis timestamp | `1781545365` | `Chain::create_genesis()` |

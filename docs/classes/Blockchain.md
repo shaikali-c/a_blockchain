@@ -22,7 +22,7 @@ Source: `include/axis/chain.h`, `src/chain.cpp`
 - HTTP routing,
 - JSON formatting,
 - WebSocket connection state,
-- wallet key storage.
+- wallet key storage (handled in a companion repository).
 
 ## Public Interface
 

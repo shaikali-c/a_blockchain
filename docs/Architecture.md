@@ -14,7 +14,7 @@ Axis is a compact monolithic blockchain node. The runtime is one process (`axisd
 | --- | --- | --- | --- |
 | Core types | `include/axis/types.h` | Fixed byte types, error enums, primitive binary reader/writer, timestamps. | Blockchain rules, networking, persistence. |
 | Utilities | `include/axis/util.h` | Logging helpers, hex conversion, amount/timestamp formatting. | Consensus or validation decisions. |
-| Crypto | `include/axis/crypto.h`, `src/crypto.cpp` | Blake2b hashing, Merkle root calculation, address derivation, Ed25519 sign/verify wrappers. | Key storage, wallet policy, chain state. |
+| Crypto | `include/axis/crypto.h`, `src/crypto.cpp` | Blake2b hashing, Merkle root calculation, address derivation, Ed25519 sign/verify wrappers. | Key storage, chain state. |
 | Transactions | `include/axis/tx.h`, `src/tx.cpp` | Transaction object, txid computation, transaction serialization, pretty printing. | Signature verification, UTXO lookups, mempool policy. |
 | Blocks | `include/axis/block.h`, `src/block.cpp` | Block header, block object, block hash, Merkle root from contained txids, block serialization. | Chain validity, persistence decisions, mining orchestration. |
 | Chain | `include/axis/chain.h`, `src/chain.cpp` | In-memory blocks, UTXO map, mempool map, mempool spent index, LevelDB handles, transaction acceptance, block insertion. | Socket I/O, HTTP routing, JSON formatting. |
@@ -119,3 +119,4 @@ graph TD
 - `Chain::verify_block_header()` is implemented but not used by block submission.
 - HTTP JSON is built manually with streams rather than a full JSON serializer.
 - WebSocket broadcast sends while holding the WebSocket set mutex.
+- Wallet and mining implementations live in companion repositories.

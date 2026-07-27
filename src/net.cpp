@@ -304,7 +304,8 @@ asio::awaitable<void> Server::on_create_block(
                 parsed->prev_hash,
                 std::move(parsed->transactions),
                 parsed->timestamp,
-                parsed->nonce
+                parsed->nonce,
+                chain_.get_difficulty()
             };
 
             if (blk.header().merkle_root != parsed->wire_merkle) {
