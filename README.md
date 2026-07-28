@@ -1,118 +1,224 @@
-# Axis — Educational C++23 Blockchain Node
+# Axis
 
-Axis is a minimal C++23 blockchain node for learning how blockchain components fit together. It implements a proof-of-work-style linear chain, UTXO-based transactions, Ed25519 signatures, LevelDB persistence, a binary TCP protocol, and an HTTP/WebSocket API.
+Axis is a blockchain node I've been building to understand what actually happens inside a cryptocurrency after the wallet signs a transaction.
 
-**This is an educational project, not production cryptocurrency software.**
+There are plenty of tutorials that explain blocks, hashes, and consensus. Very few walk through the engineering problems you run into when you're the one writing the node that has to validate transactions, keep a consistent UTXO set, survive restarts, talk to other programs over the network, and persist everything without corrupting state.
 
-## What it does
+That's what this project is.
 
-- Maintains a local linear chain of blocks.
-- Tracks an in-memory UTXO set reconstructed from persisted blocks.
-- Accepts signed transactions into a persisted mempool.
-- Validates transaction ownership, signatures, duplicate txids, and local mempool double-spends.
-- Accepts externally mined block candidates through the TCP protocol.
-- Persists blocks and pending transactions in LevelDB.
-- Exposes:
-  - binary TCP protocol on port `8889`,
-  - HTTP/JSON API on port `8080`,
-  - WebSocket event stream on port `8080` at `/ws/events`.
+The wallet and miner live in separate repositories. Axis is the node they talk to. It validates transactions, manages the mempool, verifies mined blocks, updates the chain, and exposes both a binary TCP protocol and an HTTP API.
 
-## Current limitations
+Everything else exists to support that job.
 
-Axis intentionally omits many production blockchain features:
+## Why I Built It
 
-- no peer-to-peer synchronization,
-- no fork choice or chain reorganization,
-- no difficulty retargeting,
-- no authenticated or encrypted API layer,
-- no enforced block reward in the current block submission path.
-- wallet and mining implementations live in companion repositories (not in this codebase).
+I wanted something I could actually reason about.
 
-See [`docs/FutureRoadmap.md`](docs/FutureRoadmap.md) for realistic future improvements.
+A lot of blockchain projects are so large that it's difficult to answer simple questions like:
 
-## Quick start
+* Where is a transaction verified?
+* When does a UTXO disappear?
+* Who decides whether a block is valid?
+* What exactly gets written to disk?
+* How does the node recover after restarting?
 
-### Dependencies
+I wanted to be able to answer every one of those questions by opening a few source files instead of digging through hundreds of thousands of lines of code.
 
-- CMake ≥ 3.16
-- C++23 compiler
-- libsodium ≥ 1.0.18
-- LevelDB
-- standalone Asio
-- Crow
+That influenced almost every decision in the project.
 
-### Build & test
+I intentionally avoided adding layers just because other projects have them. If something could stay simple without sacrificing correctness, I kept it simple.
+
+## What You'll Find Here
+
+Axis isn't trying to become the next Bitcoin.
+
+It's a blockchain node written from scratch that focuses on the core pipeline.
+
+A transaction arrives.
+
+The node validates ownership and signatures.
+
+If it's valid, it enters the mempool.
+
+A miner later references those transactions when building a block.
+
+The node verifies the block, updates the UTXO set, removes confirmed transactions from the mempool, stores everything in LevelDB, and broadcasts the result.
+
+That's the entire lifecycle.
+
+Nothing is mocked.
+
+Nothing is simulated.
+
+The node actually runs.
+
+## Some Design Decisions
+
+One of the first decisions I made was **not** storing the UTXO set separately.
+
+Instead, the node rebuilds it from confirmed blocks every time it starts.
+
+Yes, startup gets slower as the chain grows.
+
+I'm okay with that.
+
+I'd rather spend a few extra seconds rebuilding state than spend weeks chasing bugs caused by two databases getting out of sync.
+
+---
+
+I also chose a binary protocol instead of JSON.
+
+The wallet and miner aren't humans.
+
+They're programs.
+
+They don't need readable packets.
+
+They need packets that are compact, predictable, and cheap to parse.
+
+Every message starts with a length, followed by a message type, followed by raw serialized data.
+
+Nothing more.
+
+---
+
+Serialization follows the same idea.
+
+I didn't want protobuf, FlatBuffers, or another code generation step.
+
+Every type simply knows how to write itself into a byte buffer and reconstruct itself later.
+
+The exact same serialization code is used for disk storage and network communication.
+
+That means there's only one format to maintain.
+
+---
+
+For storage I ended up with LevelDB.
+
+Not because it's the fastest database on Earth.
+
+Because it solves exactly the problem I have.
+
+I need a lightweight embedded key-value store that writes blocks efficiently without dragging a database server into the project.
+
+LevelDB does that well.
+
+## Project Structure
+
+The project is intentionally small.
+
+Most of the interesting work happens inside a handful of modules.
+
+`chain.cpp` owns the blockchain state.
+
+`tx.cpp` deals with transactions.
+
+`block.cpp` handles blocks and Merkle roots.
+
+`crypto.cpp` wraps hashing and signature verification.
+
+`net.cpp` is the binary TCP server.
+
+`web.cpp` exposes the REST API and WebSocket endpoint.
+
+There isn't much magic.
+
+If you're curious how something works, there's usually only one place to look.
+
+## What I Enjoyed Building
+
+The networking ended up being one of my favorite parts.
+
+The TCP server uses standalone Asio with coroutines, so the code reads almost like synchronous logic even though everything is asynchronous underneath.
+
+Another part I enjoyed was building the binary serialization layer.
+
+It looks boring until you realize everything depends on it.
+
+Disk storage.
+
+Network packets.
+
+Hashes.
+
+Transactions.
+
+Blocks.
+
+Once serialization became reliable, everything else became much easier to reason about.
+
+I also spent far more time than I expected thinking about validation order.
+
+Small decisions matter.
+
+Should ownership be checked before signatures?
+
+Should duplicate detection happen before expensive cryptography?
+
+What should happen if one output overflows?
+
+The final validation pipeline is the result of answering dozens of little questions like those.
+
+## Current State
+
+Right now the node supports:
+
+* UTXO-based transaction validation
+* Proof-of-work block verification
+* Persistent block storage with LevelDB
+* Mempool management
+* Binary TCP protocol for wallets and miners
+* HTTP API for explorers
+* WebSocket events for real-time updates
+
+The wallet and miner already exist as separate projects, so this repository focuses entirely on the node.
+
+## Things I'd Like To Improve
+
+The biggest weakness right now is address lookups.
+
+Finding every UTXO for an address currently requires scanning the entire UTXO set.
+
+It works.
+
+It's also the obvious place to optimize.
+
+I'd like to maintain a dedicated address index so those lookups become effectively constant time.
+
+I'd also like to move toward a proper peer-to-peer network.
+
+At the moment the node accepts blocks from an external miner, but there's no node-to-node synchronization yet.
+
+That's easily the biggest feature still missing.
+
+## What This Project Taught Me
+
+Before building this I thought blockchain was mostly about cryptography.
+
+It isn't.
+
+Most of the work is bookkeeping.
+
+Making sure every state transition is valid.
+
+Making sure nothing gets applied twice.
+
+Making sure the node can recover after crashing.
+
+Making sure one bug doesn't silently corrupt the chain six hours later.
+
+It also changed the way I write C++.
+
+This project pushed me toward smaller modules, clearer ownership, fewer abstractions, and writing code that's easy to debug instead of code that's merely clever.
+
+## Building
 
 ```bash
-cmake -S . -B build -DBUILD_TESTING=ON
-cmake --build build --parallel
-ctest --test-dir build --output-on-failure
-```
+git clone git@github.com:shaikali-c/axis.git
+cd axis
 
-### Run
+cmake -B build
+cmake --build build
 
-```bash
-rm -rf blocks pool   # optional: start fresh
-./build/axisd
-```
-
-On first run, Axis creates a genesis block with `15.000000 AXIS` assigned to address:
-
-```text
-f45a20e043b01f65638a46831ce79b8fec3f6737
-```
-
-## Project structure
-
-```text
-include/axis/       Public headers
-src/                Implementations
-tests/              Regression tests
-blocks/             Runtime LevelDB chain database
-pool/               Runtime LevelDB mempool database
-docs/               Canonical technical documentation
-```
-
-## Architecture in one diagram
-
-```mermaid
-graph TD
-    Wallet[Wallet / Miner TCP Client] -->|binary TCP 8889| Server[Server]
-    Explorer[Explorer / Dashboard] -->|HTTP 8080| Web[WebServer]
-    Browser[WebSocket Client] -->|/ws/events| Web
-    Server --> Chain[Chain]
-    Web --> Chain
-    Chain --> Blocks[(blocks LevelDB)]
-    Chain --> Pool[(pool LevelDB)]
-    Chain --> UTXO[UTXO set]
-    Chain --> Mempool[Mempool]
-    Chain --> Crypto[libsodium crypto helpers]
-    Server -->|accepted tx/block callbacks| Web
-```
-
-## Documentation
-
-The generated documentation in [`docs/README.md`](docs/README.md) is the single source of truth for the current implementation.
-
-Key entry points:
-
-| Document | What it covers |
-| --- | --- |
-| [`docs/Architecture.md`](docs/Architecture.md) | System architecture and module boundaries. |
-| [`docs/ProjectStructure.md`](docs/ProjectStructure.md) | File and target layout. |
-| [`docs/DataFlow.md`](docs/DataFlow.md) | End-to-end transaction/block/storage flows. |
-| [`docs/Blockchain.md`](docs/Blockchain.md) | Chain ownership, genesis, block insertion, lookup. |
-| [`docs/Transactions.md`](docs/Transactions.md) | Transaction lifecycle, signing, serialization. |
-| [`docs/UTXO.md`](docs/UTXO.md) | UTXO accounting and pending-spend behavior. |
-| [`docs/Mempool.md`](docs/Mempool.md) | Pending transaction storage and mining selection. |
-| [`docs/Validation.md`](docs/Validation.md) | Current validation rules and gaps. |
-| [`docs/Networking.md`](docs/Networking.md) | TCP, HTTP, and WebSocket behavior. |
-| [`docs/api/ProtocolPackets.md`](docs/api/ProtocolPackets.md) | Exact TCP packet layouts. |
-| [`docs/api/PublicAPI.md`](docs/api/PublicAPI.md) | HTTP/WebSocket and public TCP API reference. |
-| [`docs/SourceFiles.md`](docs/SourceFiles.md) | Every source/header/test file. |
-| [`docs/FunctionReference.md`](docs/FunctionReference.md) | Function-level reference. |
-| [`docs/developer/ExtendingTheProject.md`](docs/developer/ExtendingTheProject.md) | Where and how to add features. |
-
-## License
-
-No license file is currently specified in the source tree.
+./build/axis
