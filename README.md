@@ -64,8 +64,6 @@ I'm okay with that.
 
 I'd rather spend a few extra seconds rebuilding state than spend weeks chasing bugs caused by two databases getting out of sync.
 
----
-
 I also chose a binary protocol instead of JSON.
 
 The wallet and miner aren't humans.
@@ -80,8 +78,6 @@ Every message starts with a length, followed by a message type, followed by raw 
 
 Nothing more.
 
----
-
 Serialization follows the same idea.
 
 I didn't want protobuf, FlatBuffers, or another code generation step.
@@ -91,8 +87,6 @@ Every type simply knows how to write itself into a byte buffer and reconstruct i
 The exact same serialization code is used for disk storage and network communication.
 
 That means there's only one format to maintain.
-
----
 
 For storage I ended up with LevelDB.
 
@@ -125,6 +119,73 @@ Most of the interesting work happens inside a handful of modules.
 There isn't much magic.
 
 If you're curious how something works, there's usually only one place to look.
+
+## How It All Fits Together
+
+```mermaid
+graph TB
+    subgraph External[" "]
+        W["Wallet<br/>separate repo"]
+        M["Miner<br/>separate repo"]
+        E["Explorer / Browser"]
+    end
+
+    subgraph Node["Axis Node"]
+        direction TB
+        TCP["TCP Server<br/>asio, port 8889"]
+        HTTP["HTTP + WebSocket<br/>Crow, port 8080"]
+
+        subgraph Core["Core State Machine"]
+            CHAIN["Chain<br/>shared_mutex<br/>blocks_ + utxo_ + pool_"]
+            VAL["Validation<br/>6-step pipeline"]
+            MERK["Merkle Root<br/>Blake2b"]
+        end
+
+        subgraph Storage[" "]
+            BDB[("LevelDB<br/>blocks<br/>keyed by height")]
+            PDB[("LevelDB<br/>pool<br/>keyed by txid")]
+            UTXO["UTXO Set<br/>in memory<br/>rebuilt on startup"]
+        end
+
+        subgraph Crypto[" "]
+            HASH["Blake2b<br/>hashing"]
+            SIG["Ed25519<br/>signatures"]
+        end
+    end
+
+    W -->|"CreateTransaction"| TCP
+    M -->|"GetPool / GetDifficulty / GetTip"| TCP
+    M -->|"CreateBlock<br/>(header + txid refs)"| TCP
+
+    TCP -->|"add_tx()"| CHAIN
+    TCP -->|"add_block()"| CHAIN
+    CHAIN -->|"verify_sig()"| SIG
+    CHAIN -->|"derive_address()"| HASH
+    CHAIN -->|"compute_merkle_root()"| MERK
+
+    CHAIN -->|"apply_tx():<br/>erase inputs,<br/>insert outputs"| UTXO
+    CHAIN -->|"store_block()"| BDB
+    CHAIN -->|"persist/delete"| PDB
+
+    BDB -->|"load_blocks()<br/>on startup"| CHAIN
+    PDB -->|"load_pool()<br/>on startup"| CHAIN
+
+    E -->|"GET /api/*"| HTTP
+    E -->|"WebSocket /ws/events"| HTTP
+    CHAIN -->|"queries:<br/>get_utxos / get_block / etc"| HTTP
+
+    TCP -.->|"on_tx_accepted<br/>callback"| HTTP
+    TCP -.->|"on_block_accepted<br/>callback"| HTTP
+    HTTP -->|"broadcast WS event"| E
+
+    linkStyle 0,1,2 stroke:#4a148c
+    linkStyle 3,4 stroke:#e65100
+    linkStyle 5,6,7 stroke:#880e4f
+    linkStyle 8,9,10 stroke:#1b5e20
+    linkStyle 11,12 stroke:#1b5e20
+    linkStyle 13,14 stroke:#01579b
+    linkStyle 15,16 stroke:#999
+```
 
 ## What I Enjoyed Building
 
