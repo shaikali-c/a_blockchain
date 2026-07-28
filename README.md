@@ -124,67 +124,92 @@ If you're curious how something works, there's usually only one place to look.
 
 ```mermaid
 graph TB
-    subgraph External[" "]
-        W["Wallet<br/>separate repo"]
-        M["Miner<br/>separate repo"]
-        E["Explorer / Browser"]
+    subgraph "External Actors"
+        W[Wallet Client]
+        M[Miner Client]
+        E[Explorer/User]
     end
 
-    subgraph Node["Axis Node"]
-        direction TB
-        TCP["TCP Server<br/>asio, port 8889"]
-        HTTP["HTTP + WebSocket<br/>Crow, port 8080"]
-
-        subgraph Core["Core State Machine"]
-            CHAIN["Chain<br/>shared_mutex<br/>blocks_ + utxo_ + pool_"]
-            VAL["Validation<br/>6-step pipeline"]
-            MERK["Merkle Root<br/>Blake2b"]
+    subgraph "Axis Node"
+        subgraph "Network Layer"
+            TCP[Binary TCP Server<br/>Port: Configurable]
+            HTTP[REST API Server<br/>Port: Configurable]
+            WS[WebSocket Server<br/>Real-time Updates]
         end
 
-        subgraph Storage[" "]
-            BDB[("LevelDB<br/>blocks<br/>keyed by height")]
-            PDB[("LevelDB<br/>pool<br/>keyed by txid")]
-            UTXO["UTXO Set<br/>in memory<br/>rebuilt on startup"]
+        subgraph "Core Processing"
+            VALIDATE[Transaction Validator]
+            MEMPOOL[Mempool Manager]
+            BLOCK_VERIFY[Block Verifier]
+            CHAIN[Chain Manager]
         end
 
-        subgraph Crypto[" "]
-            HASH["Blake2b<br/>hashing"]
-            SIG["Ed25519<br/>signatures"]
+        subgraph "Data Layer"
+            UTXO[UTXO Set<br/>Rebuilt on Startup]
+            LEVELDB[(LevelDB<br/>Block Storage)]
+            SERIAL[Binary Serializer<br/>Network + Disk]
+        end
+
+        subgraph "Crypto Engine"
+            HASH[Hash Functions<br/>SHA-256]
+            SIG[Signature Verification<br/>ECDSA]
+            MERKLE[Merkle Root<br/>Computation]
         end
     end
 
-    W -->|"CreateTransaction"| TCP
-    M -->|"GetPool / GetDifficulty / GetTip"| TCP
-    M -->|"CreateBlock<br/>(header + txid refs)"| TCP
+    %% Transaction Flow
+    W -->|Submit Transaction<br/>Binary Protocol| TCP
+    M -->|Submit Mined Block<br/>Binary Protocol| TCP
+    E -->|Query Blockchain<br/>HTTP/REST| HTTP
+    E -->|Subscribe to Events<br/>WebSocket| WS
 
-    TCP -->|"add_tx()"| CHAIN
-    TCP -->|"add_block()"| CHAIN
-    CHAIN -->|"verify_sig()"| SIG
-    CHAIN -->|"derive_address()"| HASH
-    CHAIN -->|"compute_merkle_root()"| MERK
+    %% Internal Processing
+    TCP -->|Raw Transaction| VALIDATE
+    TCP -->|Raw Block| BLOCK_VERIFY
+    
+    VALIDATE -->|Check Signatures| SIG
+    VALIDATE -->|Verify Ownership| UTXO
+    VALIDATE -->|Valid Transaction| MEMPOOL
+    
+    MEMPOOL -->|Pending Transactions| M
+    
+    BLOCK_VERIFY -->|Verify Block Hash| HASH
+    BLOCK_VERIFY -->|Verify Merkle Root| MERKLE
+    BLOCK_VERIFY -->|Validate Transactions| VALIDATE
+    BLOCK_VERIFY -->|Valid Block| CHAIN
+    
+    CHAIN -->|Update UTXO| UTXO
+    CHAIN -->|Store Block| LEVELDB
+    CHAIN -->|Remove Confirmed| MEMPOOL
+    
+    %% Data Flow
+    LEVELDB -->|Load Chain| CHAIN
+    UTXO -->|Rebuild from Blocks| LEVELDB
+    
+    %% Serialization
+    SERIAL -->|Encode/Decode| LEVELDB
+    SERIAL -->|Encode/Decode| TCP
+    
+    %% WebSocket Events
+    CHAIN -->|New Block Event| WS
+    MEMPOOL -->|New Transaction Event| WS
+    
+    %% HTTP API
+    CHAIN -->|Block/Transaction Data| HTTP
+    UTXO -->|Address Balance| HTTP
+    MEMPOOL -->|Pending Transactions| HTTP
 
-    CHAIN -->|"apply_tx():<br/>erase inputs,<br/>insert outputs"| UTXO
-    CHAIN -->|"store_block()"| BDB
-    CHAIN -->|"persist/delete"| PDB
-
-    BDB -->|"load_blocks()<br/>on startup"| CHAIN
-    PDB -->|"load_pool()<br/>on startup"| CHAIN
-
-    E -->|"GET /api/*"| HTTP
-    E -->|"WebSocket /ws/events"| HTTP
-    CHAIN -->|"queries:<br/>get_utxos / get_block / etc"| HTTP
-
-    TCP -.->|"on_tx_accepted<br/>callback"| HTTP
-    TCP -.->|"on_block_accepted<br/>callback"| HTTP
-    HTTP -->|"broadcast WS event"| E
-
-    linkStyle 0,1,2 stroke:#4a148c
-    linkStyle 3,4 stroke:#e65100
-    linkStyle 5,6,7 stroke:#880e4f
-    linkStyle 8,9,10 stroke:#1b5e20
-    linkStyle 11,12 stroke:#1b5e20
-    linkStyle 13,14 stroke:#01579b
-    linkStyle 15,16 stroke:#999
+    classDef external fill:#e1f5fe,stroke:#01579b,stroke-width:2px
+    classDef network fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
+    classDef core fill:#fff3e0,stroke:#e65100,stroke-width:2px
+    classDef data fill:#e8f5e9,stroke:#1b5e20,stroke-width:2px
+    classDef crypto fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    
+    class W,M,E external
+    class TCP,HTTP,WS network
+    class VALIDATE,MEMPOOL,BLOCK_VERIFY,CHAIN core
+    class UTXO,LEVELDB,SERIAL data
+    class HASH,SIG,MERKLE crypto
 ```
 
 ## What I Enjoyed Building
