@@ -58,6 +58,14 @@ private:
     Hash target_{};
 
     std::unordered_map<OutPoint, TxOutput> utxo_;
+    struct AddressHasher {
+        size_t operator()(const Address& a) const noexcept {
+            size_t v;
+            std::memcpy(&v, a.data(), sizeof(v));
+            return v;
+        }
+    };
+    std::unordered_map<Address, std::vector<OutPoint>, AddressHasher> address_utxo_;
     std::unordered_map<OutPoint, OutPoint> pool_spent_;
 
     std::unique_ptr<leveldb::DB> blocks_db_;

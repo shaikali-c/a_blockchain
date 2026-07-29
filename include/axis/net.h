@@ -40,6 +40,8 @@ public:
     Server(Chain& chain, uint16_t port = 8889, ServerEvents events = {});
 
     void run();
+    void stop();
+    asio::io_context& get_executor() { return ctx_; }
 
 private:
     asio::io_context ctx_;

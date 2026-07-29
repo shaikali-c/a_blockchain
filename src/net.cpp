@@ -129,6 +129,10 @@ void Server::run() {
     ctx_.run();
 }
 
+void Server::stop() {
+    ctx_.stop();
+}
+
 void Server::do_accept() {
     auto sock = std::make_shared<asio::ip::tcp::socket>(ctx_);
     acceptor_.async_accept(*sock, [this, sock](asio::error_code ec) {
@@ -304,8 +308,7 @@ asio::awaitable<void> Server::on_create_block(
                 parsed->prev_hash,
                 std::move(parsed->transactions),
                 parsed->timestamp,
-                parsed->nonce,
-                chain_.get_difficulty()
+                parsed->nonce
             };
 
             if (blk.header().merkle_root != parsed->wire_merkle) {

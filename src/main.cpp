@@ -3,8 +3,10 @@
 #include "axis/util.h"
 #include "axis/web.h"
 
+#include <asio.hpp>
 #include <sodium.h>
 
+#include <csignal>
 #include <exception>
 #include <string>
 #include <thread>
@@ -32,6 +34,15 @@ int main() {
             logging::info("http/websocket server starting on port 8080");
             web.run();
         }};
+
+        asio::signal_set signals(server.get_executor(), SIGINT, SIGTERM);
+        signals.async_wait([&](asio::error_code ec, int) {
+            if (!ec) {
+                logging::info("shutting down...");
+                server.stop();
+                web.stop();
+            }
+        });
 
         logging::info("tcp server starting on port 8889");
         server.run();

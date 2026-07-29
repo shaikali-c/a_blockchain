@@ -19,25 +19,22 @@ static std::string hex_key(const Hash& h) {
     return hex;
 }
 
-Chain::Chain() {
+static std::unique_ptr<leveldb::DB> open_db(const std::string& name) {
     leveldb::Options opts;
     opts.create_if_missing = true;
-
     leveldb::DB* raw = nullptr;
-    auto st = leveldb::DB::Open(opts, "blocks", &raw);
+    auto st = leveldb::DB::Open(opts, name, &raw);
     if (!st.ok())
-        throw std::runtime_error("blocks DB: " + st.ToString());
-    blocks_db_.reset(raw);
+        throw std::runtime_error(name + " DB: " + st.ToString());
+    return std::unique_ptr<leveldb::DB>(raw);
+}
 
-    st = leveldb::DB::Open(opts, "pool", &raw);
-    if (!st.ok())
-        throw std::runtime_error("pool DB: " + st.ToString());
-    pool_db_.reset(raw);
-
+Chain::Chain()
+    : blocks_db_(open_db("blocks")), pool_db_(open_db("pool")) {
     load_blocks();
     load_pool();
     if (blocks_.empty())
-        create_genesis(); // will be added in chain.cpp after class
+        create_genesis();
 
     logging::info("chain contains " + std::to_string(blocks_.size()) +
                   " block(s)");
@@ -166,11 +163,21 @@ void Chain::load_pool() {
 }
 
 void Chain::apply_tx(const Transaction& tx) {
-    for (const auto& in : tx.inputs)
-        utxo_.erase(in);
+    for (const auto& in : tx.inputs) {
+        auto it = utxo_.find(in);
+        if (it != utxo_.end()) {
+            auto& vec = address_utxo_[it->second.recipient];
+            std::erase(vec, in);
+            if (vec.empty())
+                address_utxo_.erase(it->second.recipient);
+            utxo_.erase(it);
+        }
+    }
     uint32_t idx = 0;
     for (const auto& out : tx.outputs) {
-        utxo_[OutPoint{tx.txid(), idx}] = out;
+        OutPoint op{tx.txid(), idx};
+        utxo_[op] = out;
+        address_utxo_[out.recipient].push_back(op);
         idx++;
     }
 }
@@ -186,7 +193,7 @@ void Chain::create_genesis() {
     std::vector<TxOutput> outs = {{GENESIS_ADDR, 15 * UNITS}};
     Transaction coinbase{{}, std::move(outs), Timestamp{1781545365}};
 
-    Block blk{prev, {std::move(coinbase)}, Timestamp{1781545365}, 31496, difficulty_};
+    Block blk{prev, {std::move(coinbase)}, Timestamp{1781545365}, 31496};
     store_block(blk);
     for (const auto& tx : blk.transactions)
         apply_tx(tx);
@@ -196,6 +203,7 @@ void Chain::create_genesis() {
 
 void Chain::rebuild_utxo() {
     utxo_.clear();
+    address_utxo_.clear();
     for (const auto& blk : blocks_)
         for (const auto& tx : blk.transactions)
             apply_tx(tx);
@@ -311,9 +319,13 @@ void Chain::get_utxos(
     const Address& addr,
     std::vector<std::pair<OutPoint, uint64_t>>& outpoints) const {
     std::shared_lock lock(mutex_);
-    for (const auto& [op, output] : utxo_) {
-        if (output.recipient == addr && !pool_spent_.contains(op)) {
-            outpoints.push_back(std::pair(op, output.amount));
+    auto it = address_utxo_.find(addr);
+    if (it == address_utxo_.end())
+        return;
+    for (const auto& op : it->second) {
+        if (!pool_spent_.contains(op)) {
+            auto& out = utxo_.at(op);
+            outpoints.push_back(std::pair(op, out.amount));
         }
     }
 }
@@ -365,7 +377,7 @@ bool Chain::verify_block_header(const Block& blk) const {
     if (blk.header().timestamp <= tip().header().timestamp)
         return false;
     Hash block_hash = blk.hash();
-    for (int i = 0; i < blk.header().difficulty; i++)
+    for (int i = 0; i < difficulty_; i++)
         if (block_hash[i] != 0)
             return false;
     return true;

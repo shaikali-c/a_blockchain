@@ -12,7 +12,6 @@ struct BlockHeader {
     Hash merkle_root;
     Timestamp timestamp;
     uint64_t nonce;
-    uint16_t difficulty;
 
     Hash hash() const;
     void serialize(Writer& w) const;
@@ -27,7 +26,7 @@ public:
     std::vector<Transaction> transactions;
 
     Block() = default;
-    Block(Hash prev, std::vector<Transaction> txs, Timestamp ts, uint64_t nonce, uint16_t diff);
+    Block(Hash prev, std::vector<Transaction> txs, Timestamp ts, uint64_t nonce);
     explicit Block(const std::string& serialized);
 
     const BlockHeader& header() const { return header_; }

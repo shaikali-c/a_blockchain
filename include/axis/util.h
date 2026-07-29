@@ -50,12 +50,8 @@ inline std::string short_addr(const Address& a) {
     return full.substr(0, 8) + ".." + full.substr(full.size() - 8);
 }
 
-inline std::string format_amount(uint64_t amount, uint64_t units = 1000000) {
-    auto whole = amount / units;
-    auto frac = amount % units;
-    std::ostringstream oss;
-    oss << whole << '.' << std::setw(6) << std::setfill('0') << frac;
-    return oss.str();
+inline std::string format_amount(uint64_t amount, uint64_t = 1000000) {
+    return std::to_string(amount);
 }
 
 inline std::string format_timestamp(Timestamp ts) {

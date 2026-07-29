@@ -25,7 +25,7 @@ constexpr size_t kMaxRawTxHexChars = 128 * 1024;
 constexpr size_t kOutPointSize = 36;   // hash(32) + index(4)
 constexpr size_t kTxOutputSize = 28;   // addr(20) + amount(8)
 constexpr size_t kTxFixedOverhead = 48; // txid(32) + timestamp(8) + in_count(4) + out_count(4)
-constexpr size_t kBlockHeaderSize = 82; // prev_hash(32) + merkle_root(32) + timestamp(8) + nonce(8) + difficulty(2)
+constexpr size_t kBlockHeaderSize = 80; // prev_hash(32) + merkle_root(32) + timestamp(8) + nonce(8)
 
 crow::response json_response(int code, json body) {
     crow::response res{code, body.dump()};
@@ -157,7 +157,6 @@ json block_summary_json(const Block& block, uint32_t height) {
         {"merkleRoot", to_hex(block.header().merkle_root)},
         {"timestamp", block.header().timestamp.value},
         {"nonce", block.header().nonce},
-        {"difficulty", block.header().difficulty},
         {"transactionCount", block.transactions.size()},
         {"transactions", transactionsJson},
         {"size", block_serialized_size(block)}
@@ -172,7 +171,6 @@ json block_json(const Block& block, uint32_t height) {
     j["merkleRoot"] = to_hex(block.header().merkle_root);
     j["timestamp"] = block.header().timestamp.value;
     j["nonce"] = block.header().nonce;
-    j["difficulty"] = block.header().difficulty;
     j["size"] = block_serialized_size(block);
     j["txids"] = json::array();
     for (const auto& tx : block.transactions)
