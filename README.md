@@ -307,4 +307,4 @@ cd axis
 cmake -B build
 cmake --build build
 
-./build/axis
+./build/axisd

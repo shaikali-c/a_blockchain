@@ -11,7 +11,7 @@ compile_commands.json
 CTestTestfile.cmake
 Testing/
 
-# LevelDB databases (auto-generated)
+# LevelDB databases
 blocks/
 pool/
 axis_data/
